@@ -51,7 +51,7 @@ def fetch_agent_info(agentbeats_id: str) -> dict:
 
 COMPOSE_PATH = "docker-compose.yml"
 A2A_SCENARIO_PATH = "a2a-scenario.toml"
-ENV_PATH = ".env.example"
+ENV_PATH = ".env"
 
 DEFAULT_PORT = 9009
 DEFAULT_ENV_VARS = {"PYTHONUNBUFFERED": "1"}
@@ -63,7 +63,7 @@ services:
     platform: linux/amd64
     container_name: green-agent
     command: {green_command}
-    environment:{green_env}
+    environment:{green_env}{green_volumes}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:{green_port}/.well-known/agent-card.json"]
       interval: 5s
@@ -96,7 +96,7 @@ PARTICIPANT_TEMPLATE = """  {name}:{build_or_image}
     platform: linux/amd64
     container_name: {name}
     command: {command}
-    environment:{env}
+    environment:{env}{volumes}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:{port}/.well-known/agent-card.json"]
       interval: 5s
@@ -201,6 +201,15 @@ def format_env_vars(env_dict: dict[str, Any]) -> str:
     return "\n" + "\n".join(lines)
 
 
+def format_volumes(volumes: list[str] | None) -> str:
+    """Format optional Docker volumes from scenario TOML."""
+    if not volumes:
+        return ""
+    lines = ["", "    volumes:"]
+    lines.extend(f"      - {volume}" for volume in volumes)
+    return "\n".join(lines)
+
+
 def format_depends_on(services: list) -> str:
     lines = []
     for service in services:
@@ -228,7 +237,8 @@ def generate_docker_compose(scenario: dict[str, Any]) -> str:
                 ["--host", "0.0.0.0", "--port", str(DEFAULT_PORT), "--card-url", f"http://{p['name']}:{DEFAULT_PORT}"],
                 p.get("command_args")
             ),
-            env=format_env_vars(p.get("env", {}))
+            env=format_env_vars(p.get("env", {})),
+            volumes=format_volumes(p.get("volumes")),
         )
         for p in participants
     ])
@@ -240,6 +250,7 @@ def generate_docker_compose(scenario: dict[str, Any]) -> str:
         green_port=DEFAULT_PORT,
         green_command=green_command,
         green_env=format_env_vars(green.get("env", {})),
+        green_volumes=format_volumes(green.get("volumes")),
         green_depends=format_depends_on(participant_names),
         participant_services=participant_services,
         client_depends=format_depends_on(all_services)
@@ -278,14 +289,20 @@ def generate_env_file(scenario: dict[str, Any]) -> str:
     secrets = set()
 
     # Extract secrets from ${VAR} patterns in env values
-    env_var_pattern = re.compile(r'\$\{([^}]+)\}')
+    env_var_pattern = re.compile(r'\$\{([A-Za-z_][A-Za-z0-9_]*)[^}]*\}')
 
     for value in green.get("env", {}).values():
+        for match in env_var_pattern.findall(str(value)):
+            secrets.add(match)
+    for value in green.get("volumes", []):
         for match in env_var_pattern.findall(str(value)):
             secrets.add(match)
 
     for p in participants:
         for value in p.get("env", {}).values():
+            for match in env_var_pattern.findall(str(value)):
+                secrets.add(match)
+        for value in p.get("volumes", []):
             for match in env_var_pattern.findall(str(value)):
                 secrets.add(match)
 
@@ -318,9 +335,13 @@ def main():
 
     env_content = generate_env_file(scenario)
     if env_content:
-        with open(ENV_PATH, "w") as f:
-            f.write(env_content)
-        print(f"✓ Generated {ENV_PATH}")
+        env_path = Path(ENV_PATH)
+        if env_path.exists():
+            print(f"✓ {ENV_PATH} already exists; leaving it unchanged")
+        else:
+            with open(ENV_PATH, "w") as f:
+                f.write(env_content)
+            print(f"✓ Generated {ENV_PATH}")
 
     print(f"✓ Generated {COMPOSE_PATH} and {A2A_SCENARIO_PATH}")
     print(f"\nNext steps:")

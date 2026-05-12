@@ -1,0 +1,26 @@
+# Local Docker scenario for the Codex Python-call purple agent.
+#
+# Before running:
+#   1. Authenticate Codex on the host.
+#   2. Set CODEX_HOME_HOST in .env to the absolute authenticated Codex home.
+#   3. uv run python generate_compose.py --scenario scenarios/scenario-docker-codex-python.toml
+#   4. mkdir -p output
+#   5. docker compose up --abort-on-container-exit
+
+[green_agent]
+build = { context = ".", dockerfile = "src/green_car_bench_agent/Dockerfile.car-bench-evaluator" }
+env = { GEMINI_API_KEY = "${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}", LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}", CAR_BENCH_DATA_DIR = "/workspace/scenarios/car-bench/car-bench/car_bench/envs/car_voice_assistant/mock_data" }
+volumes = ["./scenarios/car-bench/car-bench:/workspace/scenarios/car-bench/car-bench:ro"]
+
+[[participants]]
+build = { context = ".", dockerfile = "src/purple_car_bench_agent_codex_python/Dockerfile.car-bench-agent-codex-python" }
+name = "agent"
+env = { CODEX_MODEL = "${CODEX_MODEL:-gpt-5.3-codex-spark}", CODEX_REASONING_EFFORT = "${CODEX_REASONING_EFFORT:-medium}", CODEX_TIMEOUT_SECONDS = "${CODEX_TIMEOUT_SECONDS:-180}", CODEX_MALFORMED_RETRIES = "${CODEX_MALFORMED_RETRIES:-1}", LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}" }
+volumes = ["${CODEX_HOME_HOST:?Set CODEX_HOME_HOST in .env}:/home/agentbeats/.codex:rw"]
+
+[config]
+num_trials = 1
+task_split = "test"
+tasks_base_num_tasks = 2
+tasks_hallucination_num_tasks = 0
+tasks_disambiguation_num_tasks = 0

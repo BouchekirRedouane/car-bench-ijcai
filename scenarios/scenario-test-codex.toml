@@ -5,7 +5,9 @@ cmd = "python src/green_car_bench_agent/server.py --host 127.0.0.1 --port 8081"
 [[participants]]
 role = "agent"
 endpoint = "http://127.0.0.1:8080"
-cmd = "python src/purple_car_bench_agent_cerebras/server.py --host 127.0.0.1 --port 8080"
+# The Codex agent reads CODEX_MODEL from .env. Use gpt-5.3-codex-spark for
+# time-budgeted smoke runs, or add "--model <model-id>" here to override it.
+cmd = "python src/purple_car_bench_agent_codex/server.py --host 127.0.0.1 --port 8080"
 
 [config]
 num_trials = 1

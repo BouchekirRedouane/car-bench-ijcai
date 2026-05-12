@@ -6,6 +6,8 @@ This guide explains how to build your own **purple agent** (the agent under test
 > - [`car_bench_agent.py`](car_bench_agent.py) — Main agent logic (`CARBenchAgentExecutor`)
 > - [`tool_call_types.py`](tool_call_types.py) — `ToolCall` and `ToolCallsData` Pydantic models
 > - [`server.py`](server.py) — HTTP server setup and `AgentCard` configuration
+>
+> For a more sophisticated external-runtime harness, see [`../../docs/purple-agent-harnessing.md`](../../docs/purple-agent-harnessing.md), [`../../docs/codex-harness-patterns.md`](../../docs/codex-harness-patterns.md), the Codex-backed package in [`../purple_car_bench_agent_codex/`](../purple_car_bench_agent_codex/), the planner/executor reference in [`../purple_car_bench_agent_codex_planner/`](../purple_car_bench_agent_codex_planner/), and the Python-call DSL reference in [`../purple_car_bench_agent_codex_python/`](../purple_car_bench_agent_codex_python/).
 
 ---
 
@@ -81,7 +83,7 @@ See how the baseline agent parses this in `car_bench_agent.py`, inside the `exec
 
 ### Subsequent Messages
 
-After the first turn, each message contains **one TextPart**. The content depends on what happened in the previous turn:
+After the first turn, each message usually contains one Part. The content depends on what happened in the previous turn:
 
 #### Alternative A: Tool Execution Results
 
@@ -277,3 +279,11 @@ You are **not** limited to the baseline approach. You can use:
 - Any framework (LangChain, LlamaIndex, etc.)
 - Rule-based logic, retrieval-augmented generation, or hybrid approaches
 - The only requirement is conforming to the A2A message protocol described above
+
+Advanced harnesses may also use internal planning, validation, reranking, memory,
+or sub-agent-style components. These components must stay inside the benchmark
+boundary: use only the prompt, transcript, tool definitions, and tool results
+sent by the green agent, then return one benchmark-compatible A2A response.
+Do not execute CAR-bench tools directly, inspect hidden task/evaluator state, add
+private vehicle tools, or give your runtime shell/file/network abilities that can
+bypass the recorded A2A trajectory.

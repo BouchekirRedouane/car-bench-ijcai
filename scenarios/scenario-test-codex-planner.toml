@@ -1,0 +1,17 @@
+[green_agent]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/green_car_bench_agent/server.py --host 127.0.0.1 --port 8081"
+
+[[participants]]
+role = "agent"
+endpoint = "http://127.0.0.1:8080"
+# Planner defaults to gpt-5.5 and executor defaults to gpt-5.3-codex-spark.
+# Override with CODEX_PLANNER_MODEL / CODEX_EXECUTOR_MODEL in .env or CLI args.
+cmd = "python src/purple_car_bench_agent_codex_planner/server.py --host 127.0.0.1 --port 8080"
+
+[config]
+num_trials = 1
+task_split = "test"
+tasks_base_num_tasks = 3
+tasks_hallucination_num_tasks = 0
+tasks_disambiguation_num_tasks = 0

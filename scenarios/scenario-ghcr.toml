@@ -1,10 +1,10 @@
 # Testing published Docker images from GitHub Container Registry
-# This file is for testing the images published by GitHub Actions
+# This file is for testing published images before sending image/config for evaluation
 #
 # Usage:
-#   1. Ensure images are published to ghcr.io (check GitHub Actions)
-#   2. python generate_compose.py --scenario scenarios/scenario-ghcr.toml
-#   3. cp .env.example .env  # Edit with your API keys
+#   1. Ensure images are published to ghcr.io
+#   2. cp .env.example .env  # Edit with your API keys
+#   3. uv run python generate_compose.py --scenario scenarios/scenario-ghcr.toml
 #   4. mkdir -p output
 #   5. docker compose up --abort-on-container-exit
 

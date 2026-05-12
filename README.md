@@ -58,7 +58,7 @@ CAR-bench comprises **254 tasks** across three task types designed to test diffe
 ### Evaluation: Consistency Metrics for Deployment Readiness
 
 Each task is evaluated using multiple fine-grained metrics, including correctness of actions, policy compliance, and tool-calling errors (see [Evaluation](#evaluation)).
-To assess whether agents exhibit reliable behavior consistently across repeated interactions, CAR-bench reports **Pass^k and Pass@k** over multiple trials (k=3 in AgentBeats Leaderboard):
+To assess whether agents exhibit reliable behavior consistently across repeated interactions, CAR-bench reports **Pass^k and Pass@k** over multiple trials (k=3 in the competition evaluation):
 
 - **Pass^k**: Task solved in **all k runs** → measures **consistency** (deployment readiness)
 - **Pass@k**: Task solved in **at least one of k runs** → measures **latent capability**
@@ -98,7 +98,6 @@ This repository **agentifies CAR-bench** for the AgentBeats platform, enabling *
 │  • Makes decisions using LLM (Claude/GPT/Gemini)         │
 │  • Returns responses (Text) & tool calls (Data)          │
 └──────────────────────────────────────────────────────────┘
-```───────────────────────────────────────┘
 ```
 
 ---
@@ -137,6 +136,17 @@ This will clone the car-bench repository to `scenarios/car-bench/car-bench/`. Ta
 uv sync --extra car-bench-agent --extra car-bench-evaluator
 ```
 
+For the Codex-backed purple agent, install the Codex CLI separately and use the
+Codex extra. Use the planner or Python-call extras for those reference agents:
+
+```bash
+uv sync --extra car-bench-agent-codex --extra car-bench-evaluator
+# or
+uv sync --extra car-bench-agent-codex-planner --extra car-bench-evaluator
+# or
+uv sync --extra car-bench-agent-codex-python --extra car-bench-evaluator
+```
+
 ```bash
 # 5. Configure API keys
 cp .env.example .env
@@ -152,7 +162,7 @@ cp .env.example .env
 
 - **Cost**: A single full run over all 100 Base tasks costs approximately $0.08 for the user simulator and $11 for a GPT-5 agent with thinking.
 
-The agentified CAR-bench provides **four evaluation modes** for different stages of development:
+The agentified CAR-bench provides **three validation modes** for different stages of development:
 
 ### 📊 Usage Mode Comparison
 
@@ -161,7 +171,21 @@ The agentified CAR-bench provides **four evaluation modes** for different stages
 | **A. Local Python** | Development, debugging | uv run | Local processes | `output/results.json` |
 | **B. Docker (Local Build)** | Verify Dockerfiles | `generate_compose.py` | Built from Dockerfiles | `output/results.json` |
 | **C. Docker (GHCR Images)** | Pre-deployment validation | `generate_compose.py` | Pulled from registry | `output/results.json` |
-| **D. Leaderboard (GitHub Actions)** | Official submission | Fork + PR | AgentBeats Agents | Public leaderboard |
+
+### Reference Agents
+
+This repository includes several purple agents. They all speak the same A2A
+protocol to green; they differ only in their internal reasoning harness.
+
+| Agent | Package | Local Scenario | Docker Scenario | How It Works |
+|-------|---------|----------------|-----------------|--------------|
+| Template LiteLLM agent | [`src/purple_car_bench_agent/`](src/purple_car_bench_agent/) | [`scenarios/scenario.toml`](scenarios/scenario.toml) | [`scenarios/scenario-docker-local.toml`](scenarios/scenario-docker-local.toml) | Minimal participant template using a LiteLLM-compatible model. |
+| Codex JSON agent | [`src/purple_car_bench_agent_codex/`](src/purple_car_bench_agent_codex/) | [`scenarios/scenario-test-codex.toml`](scenarios/scenario-test-codex.toml) | [`scenarios/scenario-docker-codex.toml`](scenarios/scenario-docker-codex.toml) | Warm `codex app-server`; asks Spark for schema-constrained next-action JSON. |
+| Codex planner/executor | [`src/purple_car_bench_agent_codex_planner/`](src/purple_car_bench_agent_codex_planner/) | [`scenarios/scenario-test-codex-planner.toml`](scenarios/scenario-test-codex-planner.toml) | [`scenarios/scenario-docker-codex-planner.toml`](scenarios/scenario-docker-codex-planner.toml) | Plans once after each user message with a larger model, then reuses that private plan across Spark executor turns until responding. |
+| Codex Python-call DSL | [`src/purple_car_bench_agent_codex_python/`](src/purple_car_bench_agent_codex_python/) | [`scenarios/scenario-test-codex-python.toml`](scenarios/scenario-test-codex-python.toml) | [`scenarios/scenario-docker-codex-python.toml`](scenarios/scenario-docker-codex-python.toml) | Lets Spark emit a fenced Python-call action block; parses it with `ast` and maps calls back to normal A2A output. |
+
+Start with the template agent if you are building a new provider integration.
+Use the Codex references as examples for more sophisticated harnessing.
 
 ---
 
@@ -182,6 +206,30 @@ uv run agentbeats-run scenarios/scenario.toml --show-logs
 
 **Configuration**: Edit [`scenarios/scenario.toml`](scenarios/scenario.toml)
 
+To run the Codex-backed purple agent locally:
+
+```bash
+uv run agentbeats-run scenarios/scenario-test-codex.toml --show-logs
+```
+
+This expects `codex` to be on `PATH` and authenticated before the run starts.
+The Docker reference images pin `@openai/codex@0.130.0` by default because
+`codex app-server` is still labeled experimental by the CLI. Prefer published
+pinned images for comparable competition runs, and retest smoke scenarios before
+moving to a newer Codex CLI.
+
+To run the planner/executor variant:
+
+```bash
+uv run agentbeats-run scenarios/scenario-test-codex-planner.toml --show-logs
+```
+
+To run the Python-call DSL variant:
+
+```bash
+uv run agentbeats-run scenarios/scenario-test-codex-python.toml --show-logs
+```
+
 ---
 
 ### B. Docker with Local Builds (Verify Dockerization)
@@ -190,7 +238,7 @@ uv run agentbeats-run scenarios/scenario.toml --show-logs
 
 ```bash
 # 1. Generate docker-compose.yml from scenario
-python generate_compose.py --scenario scenarios/scenario-docker-local.toml
+uv run python generate_compose.py --scenario scenarios/scenario-docker-local.toml
 ```
 
 ```bash
@@ -208,25 +256,33 @@ docker compose up --abort-on-container-exit
 
 **Configuration**: Edit [`scenarios/scenario-docker-local.toml`](scenarios/scenario-docker-local.toml)
 
+For the Codex-backed Docker harness, use
+[`scenarios/scenario-docker-codex.toml`](scenarios/scenario-docker-codex.toml)
+and set `CODEX_HOME_HOST` in `.env` to an absolute authenticated Codex home.
+For the planner/executor Codex harness, use
+[`scenarios/scenario-docker-codex-planner.toml`](scenarios/scenario-docker-codex-planner.toml).
+For the Python-call DSL Codex harness, use
+[`scenarios/scenario-docker-codex-python.toml`](scenarios/scenario-docker-codex-python.toml).
+
 ---
 
 ### C. Docker with Published Images (Pre-Deployment Validation)
 
-**Test with production images before submitting to leaderboard.** Uses images from GitHub Container Registry.
+**Test the same kind of image/config you will send for evaluation.** Uses images from GitHub Container Registry.
 
-Agents in this repository are published via the [publish.yml](.github/workflows/publish.yml) GitHub Actions workflow.
+Agents in this repository can be published via the [publish.yml](.github/workflows/publish.yml) CI workflow.
 Alternatively, build and push your own images manually:
 ```bash
 docker build --platform linux/amd64 \
     -f src/purple_car_bench_agent/Dockerfile.car-bench-agent \
     -t ghcr.io/yourusername/your-agent:latest .
-# Always build linux/amd64 images for GitHub Actions compatibility
+# Always build linux/amd64 images for evaluation infrastructure compatibility
 docker push ghcr.io/yourusername/your-agent:latest
 ```
 
 ```bash
 # Update scenario-ghcr.toml with your image URLs
-python generate_compose.py --scenario scenarios/scenario-ghcr.toml
+uv run python generate_compose.py --scenario scenarios/scenario-ghcr.toml
 mkdir -p output
 docker compose up --abort-on-container-exit
 ```
@@ -235,17 +291,16 @@ docker compose up --abort-on-container-exit
 
 ---
 
-### D. Official Leaderboard Submission (GitHub Actions)
+### Competition Submission
 
-**For reproducible, public evaluation results.**
+For the competition, participants submit:
 
-This mode is **not in this repository**—it uses the official leaderboard infrastructure:
+1. A link to their registered Docker agent image, preferably pinned by digest.
+2. The scenario/config file needed to run that agent.
+3. Any required runtime environment variables or secret names, excluding secret values.
 
-1. **Register agents** on [agentbeats.dev](https://agentbeats.dev) to get agent ID
-2. **Fork** the leaderboard repository: [github.com/CAR-bench/car-bench-leaderboard-agentbeats](https://github.com/CAR-bench/car-bench-leaderboard-agentbeats)
-3. **Configure GitHub Secrets** with your API keys
-4. **Edit `scenario.toml`** in your fork with your agent ID
-5. GitHub Actions runs evaluation → **Submit pull request** → Results published to leaderboard when maintainers merge PR
+The organizers run the submitted Docker agent and config on the evaluation
+infrastructure, then report the final results back to participants.
 
 ---
 
@@ -544,7 +599,7 @@ Preference Handling ❌
 ```
 ---
 
-#### Project Structure
+## Project Structure
 
 ```
 src/
@@ -555,14 +610,33 @@ src/
 │   ├── car_bench_evaluator.py     # Main evaluator wrapping CAR-bench
 │   ├── server.py                  # A2A server entrypoint
 │   └── Dockerfile.car-bench-evaluator
-└── purple_car_bench_agent/        # Template agent (purple agent)
-    ├── car_bench_agent.py         # Agent implementation
+├── purple_car_bench_agent/        # Minimal LiteLLM template purple agent
+│   ├── car_bench_agent.py         # Agent implementation
+│   ├── server.py                  # A2A server entrypoint
+│   └── Dockerfile.car-bench-agent
+├── purple_car_bench_agent_codex/  # Codex JSON purple agent
+│   ├── car_bench_agent.py         # Agent implementation
+│   ├── codex_client.py            # Warm app-server client wrapper
+│   ├── server.py                  # A2A server entrypoint
+│   └── Dockerfile.car-bench-agent-codex
+├── purple_car_bench_agent_codex_planner/ # Codex planner/executor purple agent
+│   ├── planner_agent.py           # Plan once per user turn + Spark executor
+│   ├── server.py                  # A2A server entrypoint
+│   └── Dockerfile.car-bench-agent-codex-planner
+└── purple_car_bench_agent_codex_python/ # Codex Python-call DSL purple agent
+    ├── python_call_agent.py       # AST parser + Python-call next-action logic
     ├── server.py                  # A2A server entrypoint
-    └── Dockerfile.car-bench-agent
+    └── Dockerfile.car-bench-agent-codex-python
 
 scenarios/
 ├── scenario.toml                  # Local Python mode config
+├── scenario-test-codex.toml       # Local Codex purple-agent smoke config
+├── scenario-test-codex-planner.toml # Local Codex planner/executor smoke config
+├── scenario-test-codex-python.toml # Local Codex Python-call smoke config
 ├── scenario-docker-local.toml     # Local Docker build config
+├── scenario-docker-codex.toml     # Local Docker Codex config
+├── scenario-docker-codex-planner.toml # Local Docker Codex planner/executor config
+├── scenario-docker-codex-python.toml # Local Docker Codex Python-call config
 └── scenario-ghcr.toml             # Published images config
 
 scenarios/car-bench/car-bench/     # Original CAR-bench (manually cloned in step 2)
@@ -576,7 +650,11 @@ scenarios/car-bench/car-bench/     # Original CAR-bench (manually cloned in step
 
 Want to build and test your own agent? The purple agent is the **agent under test**: it receives tasks from the green agent (CAR-bench evaluator) via the **A2A protocol** and responds with tool calls or text.
 
-� **[Full Development Guide →](src/purple_car_bench_agent/DEVELOPMENT_GUIDE.md)** — Covers the message protocol, conversation lifecycle, and everything you need to implement a custom agent.
+**[Full Development Guide →](src/purple_car_bench_agent/DEVELOPMENT_GUIDE.md)** — Covers the message protocol, conversation lifecycle, and everything you need to implement a custom agent.
+
+**[Harness Design Notes →](docs/purple-agent-harnessing.md)** — Explains how to build more sophisticated purple-agent harnesses while preserving CAR-bench semantics.
+
+**[Codex Harness Patterns →](docs/codex-harness-patterns.md)** — Shows how to change Codex models and sketch planner/executor, ensemble/condenser, and budget-gated harnesses.
 
 ### Quick Summary
 
@@ -584,13 +662,13 @@ Want to build and test your own agent? The purple agent is the **agent under tes
 |---------|---------|
 | **Protocol** | A2A (Agent-to-Agent) using `TextPart` and `DataPart` message parts |
 | **First message** | `TextPart` with system prompt + user message, `DataPart` with tool definitions |
-| **Subsequent messages** | `TextPart` with either tool results (`"Tool: ...\nResult: ..."`) or next user utterance |
+| **Subsequent messages** | `DataPart` with tool results or `TextPart` with the next user utterance |
 | **Response format** | `TextPart` (text), `DataPart` (tool calls via `ToolCallsData`), or both |
 | **State management** | Maintain conversation history per `context_id` |
 
-### Reference Implementation
+### Reference Implementations
 
-The baseline agent in [`src/purple_car_bench_agent/`](src/purple_car_bench_agent/) demonstrates all of this:
+The baseline agent in [`src/purple_car_bench_agent/`](src/purple_car_bench_agent/) is the smallest place to start and demonstrates the complete A2A flow:
 
 | File | Purpose |
 |------|---------|
@@ -599,6 +677,41 @@ The baseline agent in [`src/purple_car_bench_agent/`](src/purple_car_bench_agent
 | [`server.py`](src/purple_car_bench_agent/server.py) | HTTP server setup and `AgentCard` configuration |
 
 You can use **any LLM provider or framework** — the only requirement is conforming to the A2A message protocol.
+
+The Codex agents are optional reference harnesses for participants who want more
+structure than a single LLM call. They use the same A2A contract as the baseline
+agent and can be swapped for participant-owned harnesses.
+
+The Codex-backed agent in [`src/purple_car_bench_agent_codex/`](src/purple_car_bench_agent_codex/) demonstrates a more advanced harness: a warm external runtime, schema-constrained next-action JSON, malformed-output retry, and benchmark-preserving conversion back into A2A tool-call parts.
+
+For time-budgeted Codex runs, `gpt-5.3-codex-spark` is the recommended practical
+default model. Participants may still use larger models for selected internal
+planner or condenser steps if the complete harness stays within the benchmark
+time budget.
+
+The planner/executor reference agent in
+[`src/purple_car_bench_agent_codex_planner/`](src/purple_car_bench_agent_codex_planner/)
+shows this pattern concretely: a private `gpt-5.5` planner emits a
+`planning_tool`-shaped internal plan after a user message, then a
+`gpt-5.3-codex-spark` executor reuses that plan across tool-result turns until
+it returns the final A2A-compatible response.
+
+The Python-call reference agent in
+[`src/purple_car_bench_agent_codex_python/`](src/purple_car_bench_agent_codex_python/)
+shows an alternative representation inspired by programmatic tool calling:
+Spark emits ordinary chat text with one fenced Python action block containing
+calls like `open_close_sunshade(percentage=50)`. The adapter parses only that
+block with `ast` and maps it back to normal A2A tool calls without executing the
+generated Python.
+
+Advanced harnessing is allowed, but it must stay inside the benchmark boundary.
+Participants may add internal planning, validation, reranking, memory, or
+sub-agent-style components before returning a response. Those components must
+only use the prompt, transcript, tool definitions, and tool results provided by
+green, and green must remain the only component that executes CAR-bench tools.
+Do not add hidden vehicle tools, inspect task/evaluator internals, or let an
+external runtime perform file/shell/network side effects during benchmark
+inference.
 
 ---
 
@@ -623,7 +736,6 @@ If you use CAR-bench in your research, please cite:
 ## Important Links
 
 - 🔗 **Original CAR-bench**: [github.com/CAR-bench/car-bench](https://github.com/CAR-bench/car-bench)
-- 🏆 **Leaderboard**: [github.com/CAR-bench/car-bench-leaderboard-agentbeats](https://github.com/CAR-bench/car-bench-leaderboard-agentbeats)
 - 🟩 **Green Agent (CAR-bench Evaluator)**: [agentbeats.dev/johanneskirmayr/car-bench-evaluator](https://agentbeats.dev/johanneskirmayr/car-bench-evaluator)
 - 🟪 **Purple Agent (Template Agent)**: [agentbeats.dev/johanneskirmayr/car-bench-agent](https://agentbeats.dev/johanneskirmayr/car-bench-agent)
 - 🎥 **YouTube Demo**: [youtu.be/jnS8R59XEWA](https://youtu.be/jnS8R59XEWA)

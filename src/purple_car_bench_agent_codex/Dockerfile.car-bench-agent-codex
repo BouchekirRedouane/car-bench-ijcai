@@ -1,0 +1,33 @@
+FROM ghcr.io/astral-sh/uv:python3.12-trixie
+
+ARG CODEX_NPM_PACKAGE="@openai/codex@0.130.0"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl git nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g "${CODEX_NPM_PACKAGE}"
+
+RUN adduser agentbeats
+USER agentbeats
+RUN mkdir -p /home/agentbeats/.cache/uv /home/agentbeats/.codex /home/agentbeats/codex-work
+WORKDIR /home/agentbeats/app
+
+COPY --chown=agentbeats:agentbeats pyproject.toml uv.lock README.md ./
+COPY --chown=agentbeats:agentbeats src src
+COPY --chown=agentbeats:agentbeats scenarios scenarios
+
+RUN find scenarios -type d -name "*.egg-info" -exec rm -rf {} + || true
+RUN find scenarios -type d -name "__pycache__" -exec rm -rf {} + || true
+
+RUN \
+    --mount=type=cache,target=/home/agentbeats/.cache/uv,uid=1000 \
+    uv sync --no-editable --extra car-bench-agent-codex
+
+ENV CODEX_HOME=/home/agentbeats/.codex
+ENV CODEX_WORKDIR=/home/agentbeats/codex-work
+ENV CODEX_APP_SERVER_CMD="codex app-server --listen stdio://"
+
+ENTRYPOINT ["uv", "run", "src/purple_car_bench_agent_codex/server.py"]
+CMD ["--host", "0.0.0.0"]
+EXPOSE 8080

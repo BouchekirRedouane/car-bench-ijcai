@@ -3,8 +3,8 @@
 #
 # Usage:
 #   1. Build your Docker images locally or use published images
-#   2. python generate_compose.py --scenario scenarios/scenario-docker-local.toml
-#   3. cp .env.example .env  # Edit with your API keys
+#   2. cp .env.example .env  # Edit with your API keys
+#   3. uv run python generate_compose.py --scenario scenarios/scenario-docker-local.toml
 #   4. mkdir -p output
 #   5. docker compose up --abort-on-container-exit
 
@@ -21,7 +21,7 @@ volumes = ["./scenarios/car-bench/car-bench:/workspace/scenarios/car-bench/car-b
 build = { context = ".", dockerfile = "src/purple_car_bench_agent/Dockerfile.car-bench-agent" }
 name = "agent"
 # Environment variables - include all API keys the agent might need
-# AGENT_LLM: Specifies which LLM model to use (works in both local and GitHub Actions)
+# AGENT_LLM: Specifies which LLM model to use.
 env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}", OPENAI_API_KEY = "${OPENAI_API_KEY}", GEMINI_API_KEY = "${GEMINI_API_KEY}", AGENT_LLM = "anthropic/claude-haiku-4-5-20251001", LOGURU_LEVEL = "${LOGURU_LEVEL}" }
 # Command arguments (optional, AGENT_LLM env var is preferred for production)
 command_args = ["--agent-llm", "anthropic/claude-haiku-4-5-20251001"]

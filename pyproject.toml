@@ -23,9 +23,9 @@ car-bench-agent = [
     "google-genai>=1.36.0",
     "litellm>=1.0.0",
 ]
-car-bench-agent-cerebras = [
-    "cerebras-cloud-sdk>=1.0.0",
-]
+car-bench-agent-codex = []
+car-bench-agent-codex-planner = []
+car-bench-agent-codex-python = []
 car-bench-evaluator = [
     "nest-asyncio>=1.6.0",
     "car-bench",

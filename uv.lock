@@ -58,9 +58,9 @@ car-bench-agent = [
     { name = "google-genai" },
     { name = "litellm" },
 ]
-car-bench-agent-cerebras = [
-    { name = "cerebras-cloud-sdk" },
-]
+car-bench-agent-codex = []
+car-bench-agent-codex-planner = []
+car-bench-agent-codex-python = []
 car-bench-evaluator = [
     { name = "car-bench" },
     { name = "nest-asyncio" },
@@ -76,7 +76,6 @@ dev = [
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.0.0" },
     { name = "car-bench", marker = "extra == 'car-bench-evaluator'", directory = "scenarios/car-bench/car-bench" },
-    { name = "cerebras-cloud-sdk", marker = "extra == 'car-bench-agent-cerebras'", specifier = ">=1.0.0" },
     { name = "google-adk", marker = "extra == 'car-bench-agent'", specifier = ">=1.14.1" },
     { name = "google-genai", marker = "extra == 'car-bench-agent'", specifier = ">=1.36.0" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -87,7 +86,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "uvicorn", specifier = ">=0.35.0" },
 ]
-provides-extras = ["car-bench-agent", "car-bench-agent-cerebras", "car-bench-evaluator"]
+provides-extras = ["car-bench-agent", "car-bench-agent-codex", "car-bench-agent-codex-planner", "car-bench-agent-codex-python", "car-bench-evaluator"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -354,23 +353,6 @@ requires-dist = [
     { name = "setuptools", specifier = ">=65.5.0" },
     { name = "tiktoken", specifier = ">=0.7.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
-]
-
-[[package]]
-name = "cerebras-cloud-sdk"
-version = "1.67.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "distro" },
-    { name = "httpx", extra = ["http2"] },
-    { name = "pydantic" },
-    { name = "sniffio" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/92/12/c201f07582068141e88f9a523ab02fdc97de58f2f7c0df775c6c52b9d8dd/cerebras_cloud_sdk-1.67.0.tar.gz", hash = "sha256:3aed6f86c6c7a83ee9d4cfb08a2acea089cebf2af5b8aed116ef79995a4f4813", size = 131536, upload-time = "2026-01-29T23:31:27.306Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7a/5e/36a364f3d1bab4073454b75e7c91dc7ec6879b960063d1a9c929f1c7ea71/cerebras_cloud_sdk-1.67.0-py3-none-any.whl", hash = "sha256:658b79ca2e9c16f75cc6b4e5d523ee014c9e54a88bd39f88905c28ecb33daae1", size = 97807, upload-time = "2026-01-29T23:31:25.77Z" },
 ]
 
 [[package]]
