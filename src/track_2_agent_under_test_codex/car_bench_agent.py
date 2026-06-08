@@ -32,6 +32,7 @@ from turn_metrics import (
     NUM_LLM_CALLS,
     NUM_PASSES,
     PROMPT_TOKENS,
+    QUOTA_WAIT_TIME_MS,
     THINKING_TOKENS,
     TURN_METRICS_KEY,
 )
@@ -66,6 +67,7 @@ class AgentInferenceResult:
     elapsed_ms: float
     token_usage: CodexTokenUsage | None = None
     internal_calls: int = 1
+    quota_wait_ms: float = 0.0
 
 
 class CARBenchAgentExecutor(AgentExecutor):
@@ -161,6 +163,7 @@ class CARBenchAgentExecutor(AgentExecutor):
                 inference_result.elapsed_ms,
                 token_usage=inference_result.token_usage,
                 internal_calls=inference_result.internal_calls,
+                quota_wait_ms=inference_result.quota_wait_ms,
             )
             response_message = new_message(
                 parts=parts,
@@ -268,6 +271,7 @@ class CARBenchAgentExecutor(AgentExecutor):
         last_error: Exception | None = None
         correction = None
         total_duration_ms = 0.0
+        total_quota_wait_ms = 0.0
         total_token_usage: CodexTokenUsage | None = None
         internal_calls = 0
         for attempt in range(self.malformed_retries + 1):
@@ -297,6 +301,7 @@ class CARBenchAgentExecutor(AgentExecutor):
                 )
                 internal_calls += 1
                 total_duration_ms += result.duration_ms
+                total_quota_wait_ms += result.quota_wait_ms
                 total_token_usage = add_token_usage(
                     total_token_usage,
                     result.token_usage,
@@ -315,6 +320,7 @@ class CARBenchAgentExecutor(AgentExecutor):
                     reasoning_effort=result.reasoning_effort or self.reasoning_effort,
                     inference_ms=round(result.duration_ms, 1),
                     total_inference_ms=round(total_duration_ms, 1),
+                    quota_wait_ms=round(total_quota_wait_ms, 1),
                     input_tokens=(
                         total_token_usage.input_tokens
                         if total_token_usage is not None
@@ -342,6 +348,7 @@ class CARBenchAgentExecutor(AgentExecutor):
                     elapsed_ms=total_duration_ms,
                     token_usage=total_token_usage,
                     internal_calls=max(internal_calls, 1),
+                    quota_wait_ms=total_quota_wait_ms,
                 )
             except (CodexMalformedResponseError, json.JSONDecodeError) as e:
                 last_error = e
@@ -408,6 +415,7 @@ class CARBenchAgentExecutor(AgentExecutor):
         *,
         token_usage: CodexTokenUsage | None = None,
         internal_calls: int = 1,
+        quota_wait_ms: float = 0.0,
     ) -> None:
         metrics = self.ctx_id_to_turn_metrics.setdefault(
             context_id,
@@ -418,6 +426,7 @@ class CARBenchAgentExecutor(AgentExecutor):
                 MODEL: self.model or "codex",
                 THINKING_TOKENS: 0,
                 NUM_LLM_CALLS: 0,
+                QUOTA_WAIT_TIME_MS: 0.0,
                 "_total_llm_time_ms": 0.0,
             },
         )
@@ -427,6 +436,7 @@ class CARBenchAgentExecutor(AgentExecutor):
             metrics[COMPLETION_TOKENS] += token_usage.output_tokens
             metrics[THINKING_TOKENS] += token_usage.reasoning_output_tokens
         metrics["_total_llm_time_ms"] += elapsed_ms
+        metrics[QUOTA_WAIT_TIME_MS] += quota_wait_ms
         num_calls = metrics[NUM_LLM_CALLS]
         metrics[AVG_LLM_CALL_TIME_MS] = round(metrics["_total_llm_time_ms"] / num_calls, 1)
         metrics[NUM_PASSES] = max(internal_calls, 1)

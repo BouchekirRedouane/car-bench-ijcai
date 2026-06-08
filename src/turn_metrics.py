@@ -21,6 +21,7 @@ THINKING_TOKENS = "thinking_tokens"
 NUM_LLM_CALLS = "num_llm_calls"
 AVG_LLM_CALL_TIME_MS = "avg_llm_call_time_ms"
 NUM_PASSES = "num_passes"
+QUOTA_WAIT_TIME_MS = "quota_wait_time_ms"
 
 
 def extract_turn_metrics(metadata) -> dict:
@@ -37,6 +38,7 @@ def extract_turn_metrics(metadata) -> dict:
         NUM_LLM_CALLS: 0,
         AVG_LLM_CALL_TIME_MS: 0.0,
         NUM_PASSES: 1,
+        QUOTA_WAIT_TIME_MS: 0.0,
     }
 
     if metadata is None:

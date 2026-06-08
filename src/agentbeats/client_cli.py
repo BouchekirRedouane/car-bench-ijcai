@@ -23,7 +23,7 @@ from a2a.types import (
 )
 from google.protobuf.json_format import MessageToDict
 
-from agentbeats.client import create_message
+from agentbeats.client import DEFAULT_TIMEOUT, create_message
 from agentbeats.models import EvalRequest
 
 
@@ -113,6 +113,53 @@ def _find_final_result(artifact_records: list[dict[str, Any]]) -> tuple[dict[str
                 final_text = text
 
     return final_data, final_text
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _quota_wait_seconds_from_result_data(data: dict[str, Any] | None) -> float:
+    if not isinstance(data, dict):
+        return 0.0
+    if "quota_wait_time" in data:
+        return _safe_float(data.get("quota_wait_time"))
+
+    total_ms = 0.0
+    detailed = data.get("detailed_results_by_split")
+    if not isinstance(detailed, dict):
+        return 0.0
+    for results in detailed.values():
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            for message in result.get("trajectory", []) or []:
+                if not isinstance(message, dict):
+                    continue
+                metrics = message.get("turn_metrics")
+                if isinstance(metrics, dict):
+                    total_ms += _safe_float(metrics.get("quota_wait_time_ms"))
+    return total_ms / 1000.0
+
+
+def _quota_wait_seconds_from_artifacts(
+    final_result: dict[str, Any] | None,
+    artifact_records: list[dict[str, Any]],
+) -> float:
+    quota_wait = _quota_wait_seconds_from_result_data(final_result)
+    if quota_wait:
+        return quota_wait
+    for artifact in reversed(artifact_records):
+        for data in artifact.get("data_parts", []):
+            quota_wait = _quota_wait_seconds_from_result_data(data)
+            if quota_wait:
+                return quota_wait
+    return 0.0
 
 
 def print_final_summary(final_data: dict[str, Any] | None, final_text: str) -> None:
@@ -381,13 +428,21 @@ def build_output_payload(
     metadata = _agent_metadata(scenario_data)
     model_label = _model_label(metadata)
     reasoning_label = _reasoning_label(metadata)
+    raw_wall_time_seconds = (completed_at - started_at).total_seconds()
+    quota_wait_seconds = _quota_wait_seconds_from_artifacts(
+        final_result,
+        artifact_records,
+    )
+    wall_time_seconds = max(0.0, raw_wall_time_seconds - quota_wait_seconds)
 
     return {
         "metadata": {
             "schema_version": 1,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
-            "wall_time_seconds": round((completed_at - started_at).total_seconds(), 3),
+            "wall_time_seconds": round(wall_time_seconds, 3),
+            "raw_wall_time_seconds": round(raw_wall_time_seconds, 3),
+            "quota_wait_seconds": round(quota_wait_seconds, 3),
             "scenario_path": str(scenario_path),
             "scenario_name": _scenario_name(scenario_path, scenario_data),
             "agent_name": _agent_name(scenario_path, scenario_data),
@@ -458,7 +513,7 @@ async def main():
     artifact_records = []
 
     # Send message via streaming
-    async with httpx.AsyncClient(timeout=300) as httpx_client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as httpx_client:
         resolver = A2ACardResolver(httpx_client=httpx_client, base_url=evaluator_url)
         agent_card = await resolver.get_agent_card()
         config = ClientConfig(
@@ -534,8 +589,16 @@ async def main():
             started_at=started_at,
             completed_at=completed_at,
         )
+        raw_client_wall_time_seconds = time.perf_counter() - start_monotonic
+        quota_wait_seconds = _safe_float(
+            output_data["metadata"].get("quota_wait_seconds", 0.0)
+        )
         output_data["metadata"]["client_wall_time_seconds"] = round(
-            time.perf_counter() - start_monotonic,
+            max(0.0, raw_client_wall_time_seconds - quota_wait_seconds),
+            3,
+        )
+        output_data["metadata"]["raw_client_wall_time_seconds"] = round(
+            raw_client_wall_time_seconds,
             3,
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)

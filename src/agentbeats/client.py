@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from uuid import uuid4
 
 import httpx
@@ -18,7 +19,7 @@ from a2a.helpers.proto_helpers import new_text_part
 from google.protobuf.json_format import MessageToDict
 
 
-DEFAULT_TIMEOUT = 300
+DEFAULT_TIMEOUT = float(os.getenv("CAR_BENCH_A2A_TIMEOUT_SECONDS", "86400"))
 
 
 def create_message(*, role: int = Role.ROLE_USER, text: str, context_id: str | None = None) -> Message:

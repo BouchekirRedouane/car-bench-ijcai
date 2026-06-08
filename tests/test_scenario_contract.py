@@ -207,6 +207,48 @@ class ScenarioContractTest(unittest.TestCase):
         self.assertEqual(payload["metadata"]["reasoning_effort"], "low")
         self.assertEqual(payload["metadata"]["task_selection"], "split-unspecified-trials1")
         self.assertEqual(payload["metadata"]["wall_time_seconds"], 60.0)
+        self.assertEqual(payload["metadata"]["quota_wait_seconds"], 0.0)
+
+    def test_output_payload_subtracts_quota_wait_from_wall_time(self) -> None:
+        req, evaluator_url = parse_client_toml(
+            {
+                "evaluator": {"endpoint": "http://127.0.0.1:8081"},
+                "agent_under_test": {"endpoint": "http://127.0.0.1:8080"},
+            }
+        )
+        payload = build_output_payload(
+            req=req,
+            evaluator_url=evaluator_url,
+            scenario_path=Path("scenarios/track_2_agent_under_test_codex/local_smoke.toml"),
+            scenario_data={
+                "agent_under_test": {
+                    "endpoint": "http://127.0.0.1:8080",
+                    "cmd": "python server.py --model gpt-5.3-codex-spark",
+                },
+                "config": {"num_trials": 1},
+            },
+            artifact_records=[
+                {
+                    "name": "Result",
+                    "text_parts": ["CAR-bench Results\nOverall Pass Rate: 100.0%"],
+                    "data_parts": [
+                        {
+                            "summary": {"pass_rate": 100.0},
+                            "score": 1,
+                            "max_score": 1,
+                            "pass_rate": 100.0,
+                            "quota_wait_time": 15.0,
+                        }
+                    ],
+                }
+            ],
+            started_at=datetime.fromisoformat("2026-05-13T10:00:00+00:00"),
+            completed_at=datetime.fromisoformat("2026-05-13T10:01:00+00:00"),
+        )
+
+        self.assertEqual(payload["metadata"]["raw_wall_time_seconds"], 60.0)
+        self.assertEqual(payload["metadata"]["quota_wait_seconds"], 15.0)
+        self.assertEqual(payload["metadata"]["wall_time_seconds"], 45.0)
 
     def test_client_cli_parses_new_shape(self) -> None:
         req, evaluator_url = parse_client_toml(

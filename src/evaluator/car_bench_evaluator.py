@@ -42,6 +42,7 @@ from logging_utils import configure_logger
 from turn_metrics import (
     TURN_METRICS_KEY, SOURCE_KEY, SOURCE_USER, SOURCE_ENVIRONMENT,
     extract_turn_metrics, AVG_LLM_CALL_TIME_MS, NUM_LLM_CALLS, COST,
+    QUOTA_WAIT_TIME_MS, PROMPT_TOKENS, COMPLETION_TOKENS, THINKING_TOKENS,
 )
 from car_bench_paths import CAR_BENCH_REPO
 sys.path.pop(0)
@@ -58,6 +59,116 @@ nest_asyncio.apply()
 logger = configure_logger(role="evaluator", context="-")
 
 RESPOND_ACTION_NAME = "respond"
+EVALUATOR_METRICS_KEY = "evaluator_metrics"
+A2A_TURN_TIME_MS = "a2a_turn_time_ms"
+A2A_EFFECTIVE_TURN_TIME_MS = "a2a_effective_turn_time_ms"
+AGENT_PROMPT_TOKENS = "agent_prompt_tokens"
+AGENT_COMPLETION_TOKENS = "agent_completion_tokens"
+AGENT_THINKING_TOKENS = "agent_thinking_tokens"
+AGENT_INPUT_TOKENS = "agent_input_tokens"
+AGENT_OUTPUT_TOKENS = "agent_output_tokens"
+AGENT_TOTAL_TOKENS = "agent_total_tokens"
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _sum_quota_wait_seconds(results_by_split: Dict[str, List[EnvRunResult]]) -> float:
+    total_ms = 0.0
+    for results in results_by_split.values():
+        for result in results:
+            for message in getattr(result, "traj", []) or []:
+                if not isinstance(message, dict):
+                    continue
+                metrics = message.get("turn_metrics")
+                if not isinstance(metrics, dict):
+                    continue
+                total_ms += _safe_float(metrics.get(QUOTA_WAIT_TIME_MS, 0.0))
+    return total_ms / 1000.0
+
+
+def _a2a_turn_times_ms(trajectory: List[Dict[str, Any]]) -> List[float]:
+    times = []
+    for message in trajectory:
+        if not isinstance(message, dict):
+            continue
+        metrics = message.get(EVALUATOR_METRICS_KEY)
+        if not isinstance(metrics, dict):
+            continue
+        value = metrics.get(A2A_TURN_TIME_MS)
+        if isinstance(value, (int, float)):
+            times.append(float(value))
+    return times
+
+
+def _a2a_timing_summary(trajectory: List[Dict[str, Any]]) -> Dict[str, Any]:
+    turn_times_ms = _a2a_turn_times_ms(trajectory)
+    total_time_ms = sum(turn_times_ms)
+    return {
+        "a2a_turn_times_ms": [round(value, 1) for value in turn_times_ms],
+        "num_a2a_turns": len(turn_times_ms),
+        "total_a2a_time_ms": round(total_time_ms, 1),
+        "mean_a2a_turn_time_ms": (
+            round(total_time_ms / len(turn_times_ms), 1)
+            if turn_times_ms
+            else 0.0
+        ),
+    }
+
+
+def _agent_token_summary(trajectory: List[Dict[str, Any]]) -> Dict[str, int]:
+    prompt_tokens = 0
+    completion_tokens = 0
+    thinking_tokens = 0
+
+    for message in trajectory:
+        if not isinstance(message, dict):
+            continue
+        metrics = message.get("turn_metrics")
+        if not isinstance(metrics, dict):
+            continue
+        prompt_tokens += int(_safe_float(metrics.get(PROMPT_TOKENS, 0)))
+        completion_tokens += int(_safe_float(metrics.get(COMPLETION_TOKENS, 0)))
+        thinking_tokens += int(_safe_float(metrics.get(THINKING_TOKENS, 0)))
+
+    return {
+        AGENT_INPUT_TOKENS: prompt_tokens,
+        AGENT_OUTPUT_TOKENS: completion_tokens + thinking_tokens,
+        AGENT_PROMPT_TOKENS: prompt_tokens,
+        AGENT_COMPLETION_TOKENS: completion_tokens,
+        AGENT_THINKING_TOKENS: thinking_tokens,
+        AGENT_TOTAL_TOKENS: prompt_tokens + completion_tokens + thinking_tokens,
+    }
+
+
+def _non_system_trajectory(result: EnvRunResult) -> List[Dict[str, Any]]:
+    return [
+        msg for msg in result.traj
+        if isinstance(msg, dict) and msg.get("role") != "system"
+    ]
+
+
+def _detailed_result_row(result: EnvRunResult) -> Dict[str, Any]:
+    trajectory = _non_system_trajectory(result)
+    return {
+        "task_id": result.task_id,
+        "reward": result.reward,
+        "trial": result.trial,
+        "reward_info": result.info.get("reward_info", {}),
+        "task": result.info.get("task", {}),
+        "trajectory": trajectory,
+        "error": result.info.get("error", None),
+        "traceback": result.info.get("traceback", None),
+        "user_cost": result.info.get("user_cost", 0),
+        "total_agent_cost": result.info.get("total_agent_cost", 0),
+        "total_llm_latency_ms": result.info.get("total_llm_induced_latency_ms", 0),
+        **_a2a_timing_summary(trajectory),
+        **_agent_token_summary(trajectory),
+    }
 
 
 def create_remote_agent_factory(agent_url: str):
@@ -191,8 +302,21 @@ def create_remote_agent_factory(agent_url: str):
                 response_metadata = getattr(response, "metadata", None)
                 turn_metrics = extract_turn_metrics(response_metadata)
 
-                # Add evaluator-measured turn_time_ms
-                turn_metrics["turn_time_ms"] = round(turn_time_ms, 1)
+                quota_wait_time_ms = _safe_float(
+                    turn_metrics.get(QUOTA_WAIT_TIME_MS, 0.0)
+                )
+                effective_turn_time_ms = max(0.0, turn_time_ms - quota_wait_time_ms)
+
+                # Add evaluator-measured turn time after removing model-quota sleep.
+                turn_metrics[QUOTA_WAIT_TIME_MS] = round(quota_wait_time_ms, 1)
+                turn_metrics["raw_turn_time_ms"] = round(turn_time_ms, 1)
+                turn_metrics["turn_time_ms"] = round(effective_turn_time_ms, 1)
+
+                next_message[EVALUATOR_METRICS_KEY] = {
+                    A2A_TURN_TIME_MS: round(turn_time_ms, 1),
+                    A2A_EFFECTIVE_TURN_TIME_MS: round(effective_turn_time_ms, 1),
+                    QUOTA_WAIT_TIME_MS: round(quota_wait_time_ms, 1),
+                }
 
                 # Attach metrics to the message if this is a final response (no tool calls)
                 if not next_message.get("tool_calls") and turn_metrics.get(NUM_LLM_CALLS, 0) > 0:
@@ -318,7 +442,10 @@ def create_remote_agent_factory(agent_url: str):
 
 def calculate_evaluation_results(
     results_by_split: Dict[str, List[EnvRunResult]],
-    time_used: float
+    time_used: float,
+    *,
+    raw_time_used: float | None = None,
+    quota_wait_time: float = 0.0,
 ) -> Tuple[Dict[str, Any], str]:
     """Calculate comprehensive evaluation results and format summary.
 
@@ -399,22 +526,7 @@ def calculate_evaluation_results(
             continue
 
         detailed_results_by_split[split] = [
-            {
-                "task_id": result.task_id,
-                "reward": result.reward,
-                "trial": result.trial,
-                "reward_info": result.info.get("reward_info", {}),
-                "task": result.info.get("task", {}),
-                "trajectory": [
-                    msg for msg in result.traj
-                    if msg.get("role") != "system"
-                ],
-                "error": result.info.get("error", None),
-                "traceback": result.info.get("traceback", None),
-                "user_cost": result.info.get("user_cost", 0),
-                "total_agent_cost": result.info.get("total_agent_cost", 0),
-                "total_llm_latency_ms": result.info.get("total_llm_induced_latency_ms", 0),
-            }
+            _detailed_result_row(result)
             for result in results
         ]
 
@@ -450,6 +562,8 @@ def calculate_evaluation_results(
         "pass_rate": pass_rate,
         "task_rewards_by_split": task_rewards_by_split,
         "time_used": time_used,
+        "raw_time_used": raw_time_used if raw_time_used is not None else time_used,
+        "quota_wait_time": quota_wait_time,
         "pass_power_k_scores": pass_power_k_scores,
         "pass_at_k_scores": pass_at_k_scores,
         "pass_power_k_scores_by_split": pass_power_k_scores_by_split,
@@ -668,10 +782,17 @@ class CARBenchEvaluator(EvaluatorAgent):
 
                 # Emit intermediate artifact with per-split results so far
                 # This allows crash recovery and live progress tracking
-                intermediate_time = time.time() - start_time
+                intermediate_raw_time = time.time() - start_time
+                intermediate_quota_wait = _sum_quota_wait_seconds(results_by_split)
+                intermediate_time = max(
+                    0.0,
+                    intermediate_raw_time - intermediate_quota_wait,
+                )
                 intermediate_data, intermediate_summary = calculate_evaluation_results(
                     {k: v for k, v in results_by_split.items() if v},
-                    intermediate_time
+                    intermediate_time,
+                    raw_time_used=intermediate_raw_time,
+                    quota_wait_time=intermediate_quota_wait,
                 )
                 await updater.add_artifact(
                     parts=[
@@ -682,8 +803,15 @@ class CARBenchEvaluator(EvaluatorAgent):
                 )
 
             # Calculate metrics and format results
-            time_used = time.time() - start_time
-            result_data, summary = calculate_evaluation_results(results_by_split, time_used)
+            raw_time_used = time.time() - start_time
+            quota_wait_time = _sum_quota_wait_seconds(results_by_split)
+            time_used = max(0.0, raw_time_used - quota_wait_time)
+            result_data, summary = calculate_evaluation_results(
+                results_by_split,
+                time_used,
+                raw_time_used=raw_time_used,
+                quota_wait_time=quota_wait_time,
+            )
 
             await updater.add_artifact(
                 parts=[

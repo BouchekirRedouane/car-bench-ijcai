@@ -45,6 +45,7 @@ class PythonCallCARBenchAgentExecutor(CodexNextActionExecutor):
         last_error: Exception | None = None
         correction = None
         total_duration_ms = 0.0
+        total_quota_wait_ms = 0.0
         total_token_usage: CodexTokenUsage | None = None
         internal_calls = 0
         for attempt in range(self.malformed_retries + 1):
@@ -74,6 +75,7 @@ class PythonCallCARBenchAgentExecutor(CodexNextActionExecutor):
                 )
                 internal_calls += 1
                 total_duration_ms += result.duration_ms
+                total_quota_wait_ms += result.quota_wait_ms
                 total_token_usage = add_token_usage(
                     total_token_usage,
                     result.token_usage,
@@ -92,6 +94,7 @@ class PythonCallCARBenchAgentExecutor(CodexNextActionExecutor):
                     reasoning_effort=result.reasoning_effort or self.reasoning_effort,
                     inference_ms=round(result.duration_ms, 1),
                     total_inference_ms=round(total_duration_ms, 1),
+                    quota_wait_ms=round(total_quota_wait_ms, 1),
                     input_tokens=(
                         total_token_usage.input_tokens
                         if total_token_usage is not None
@@ -119,6 +122,7 @@ class PythonCallCARBenchAgentExecutor(CodexNextActionExecutor):
                     elapsed_ms=total_duration_ms,
                     token_usage=total_token_usage,
                     internal_calls=max(internal_calls, 1),
+                    quota_wait_ms=total_quota_wait_ms,
                 )
             except (
                 CodexMalformedResponseError,

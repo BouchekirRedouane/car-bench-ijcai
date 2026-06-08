@@ -3,6 +3,7 @@
 Uses v1.0 JSON-RPC format with protobuf-compatible JSON serialization.
 """
 import json
+import os
 from uuid import uuid4
 
 import httpx
@@ -10,7 +11,7 @@ from a2a.types import Message, Role, Task
 from google.protobuf.json_format import MessageToDict, ParseDict
 
 
-DEFAULT_TIMEOUT = 300
+DEFAULT_TIMEOUT = float(os.getenv("CAR_BENCH_A2A_TIMEOUT_SECONDS", "86400"))
 
 # A2A v1.0 headers
 A2A_HEADERS = {

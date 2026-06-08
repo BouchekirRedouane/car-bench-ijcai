@@ -314,7 +314,8 @@ The metadata shape is:
     "thinking_tokens": 0,
     "num_llm_calls": 1,
     "avg_llm_call_time_ms": 1234.5,
-    "num_passes": 1
+    "num_passes": 1,
+    "quota_wait_time_ms": 0.0
   }
 }
 ```
@@ -334,6 +335,9 @@ Field meanings:
 - `num_passes`: number of internal inference passes if the harness has a
   multi-pass planner, executor, ensemble, or validator. Use `1` for a normal
   single-pass agent.
+- `quota_wait_time_ms`: time spent waiting for a provider or subscription quota
+  reset. The evaluator subtracts this from benchmark turn and wall-clock
+  summaries while preserving raw timing fields for audit.
 
 The evaluator adds its own measured `turn_time_ms` after receiving the response.
 Agents should not send `turn_time_ms` themselves.

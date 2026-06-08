@@ -37,6 +37,7 @@ from turn_metrics import (
     NUM_LLM_CALLS,
     NUM_PASSES,
     PROMPT_TOKENS,
+    QUOTA_WAIT_TIME_MS,
     THINKING_TOKENS,
 )
 sys.path.pop(0)
@@ -89,6 +90,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
         last_error: Exception | None = None
         correction = None
         total_duration_ms = 0.0
+        total_quota_wait_ms = 0.0
         total_token_usage: CodexTokenUsage | None = None
         internal_call_count = 0
         planner_ms = 0.0
@@ -143,6 +145,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
                     )
                     internal_call_count += 1
                     total_duration_ms += plan_result.duration_ms
+                    total_quota_wait_ms += plan_result.quota_wait_ms
                     total_token_usage = add_token_usage(
                         total_token_usage,
                         plan_result.token_usage,
@@ -188,6 +191,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
                 )
                 internal_call_count += 1
                 total_duration_ms += executor_result.duration_ms
+                total_quota_wait_ms += executor_result.quota_wait_ms
                 total_token_usage = add_token_usage(
                     total_token_usage,
                     executor_result.token_usage,
@@ -214,6 +218,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
                     planner_ms=round(planner_ms, 1),
                     executor_ms=round(executor_result.duration_ms, 1),
                     total_inference_ms=round(total_duration_ms, 1),
+                    quota_wait_ms=round(total_quota_wait_ms, 1),
                     input_tokens=(
                         total_token_usage.input_tokens
                         if total_token_usage is not None
@@ -241,6 +246,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
                     elapsed_ms=total_duration_ms,
                     token_usage=total_token_usage,
                     internal_calls=max(internal_call_count, 1),
+                    quota_wait_ms=total_quota_wait_ms,
                 )
             except (CodexMalformedResponseError, json.JSONDecodeError) as e:
                 last_error = e
@@ -271,6 +277,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
         *,
         token_usage: CodexTokenUsage | None = None,
         internal_calls: int | None = None,
+        quota_wait_ms: float = 0.0,
     ) -> None:
         internal_calls = max(
             internal_calls
@@ -287,6 +294,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
                 MODEL: f"{self.planner_model}->{self.executor_model}",
                 THINKING_TOKENS: 0,
                 NUM_LLM_CALLS: 0,
+                QUOTA_WAIT_TIME_MS: 0.0,
                 "_total_llm_time_ms": 0.0,
             },
         )
@@ -296,6 +304,7 @@ class PlannerExecutorCARBenchAgentExecutor(CodexNextActionExecutor):
             metrics[COMPLETION_TOKENS] += token_usage.output_tokens
             metrics[THINKING_TOKENS] += token_usage.reasoning_output_tokens
         metrics["_total_llm_time_ms"] += elapsed_ms
+        metrics[QUOTA_WAIT_TIME_MS] += quota_wait_ms
         metrics[AVG_LLM_CALL_TIME_MS] = round(
             metrics["_total_llm_time_ms"] / metrics[NUM_LLM_CALLS],
             1,

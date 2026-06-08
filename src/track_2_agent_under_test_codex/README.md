@@ -119,6 +119,10 @@ Important environment variables:
 | `CODEX_TIMEOUT_SECONDS` | `180` | Per-turn timeout. |
 | `CODEX_MALFORMED_RETRIES` | `1` | Retry budget when final JSON is malformed. |
 | `CODEX_WORKDIR` | `/tmp/car-bench-codex-workdir` | Read-only sandbox working directory. |
+| `CODEX_USAGE_LIMIT_RETRY_BUFFER_SECONDS` | `60` | Extra cushion after a Codex usage-limit reset time before retrying. |
+| `CODEX_USAGE_LIMIT_MAX_WAIT_SECONDS` | unset | Optional cap; if the reset wait exceeds this, fail instead of sleeping. |
+| `CAR_BENCH_RATE_LIMIT_REPORT_DIR` | `/tmp/car-bench-rate-limit-reports` | Directory for JSON snapshots written when Codex reports a usage limit. |
+| `CAR_BENCH_A2A_TIMEOUT_SECONDS` | `86400` | HTTP timeout for long benchmark calls, including quota-reset waits. |
 
 ## App-Server Stability
 
@@ -139,6 +143,16 @@ The adapter maps app-server token usage into the standard CAR-bench
 `inputTokens`, `outputTokens`, and `reasoningOutputTokens` become
 `prompt_tokens`, `completion_tokens`, and `thinking_tokens`. Per-turn cost is
 not exposed reliably by app-server, so the reference agent reports `cost: 0.0`.
+When Codex reports a temporary usage limit with a reset time, the adapter waits
+and retries the same turn. That sleep is reported as `quota_wait_time_ms` and is
+subtracted from benchmark latency and wall-clock summaries while raw timings
+remain available for audit. The adapter also writes a temporary JSON report to
+`CAR_BENCH_RATE_LIMIT_REPORT_DIR` containing the elapsed wall time before the
+limit, reset time, wait duration, successful Codex call counts, and aggregate
+token usage overall and by model. If another usage limit is hit after a reset,
+the next report also includes `previous_retry_at` and
+`wall_time_since_previous_retry_at_seconds`. The actual wake-up target is
+reported as `retry_with_buffer_at`.
 
 For a three-month run, publish and evaluate with pinned images. If you update
 Codex CLI, regenerate the app-server schema with the new CLI and run the smoke

@@ -41,6 +41,10 @@ harnessing boundaries and additional Track 2 patterns, see
 | `CODEX_EXECUTOR_REASONING_EFFORT` | `medium` | Executor reasoning effort. |
 | `CODEX_TIMEOUT_SECONDS` | `180` | Per-Codex-turn timeout. |
 | `CODEX_MALFORMED_RETRIES` | `1` | Retry budget for malformed JSON. |
+| `CODEX_USAGE_LIMIT_RETRY_BUFFER_SECONDS` | `60` | Extra cushion after a Codex usage-limit reset time before retrying. |
+| `CODEX_USAGE_LIMIT_MAX_WAIT_SECONDS` | unset | Optional cap; if the reset wait exceeds this, fail instead of sleeping. |
+| `CAR_BENCH_RATE_LIMIT_REPORT_DIR` | `/tmp/car-bench-rate-limit-reports` | Directory for JSON snapshots written when Codex reports a usage limit. |
+| `CAR_BENCH_A2A_TIMEOUT_SECONDS` | `86400` | HTTP timeout for long benchmark calls, including quota-reset waits. |
 
 Participants can replace the private planning shape with their own planning
 tool, planning mode, or sub-agent-style component. The important boundary is
