@@ -1,10 +1,23 @@
 """Server entry point for CAR-bench evaluator agent."""
+import litellm
+litellm.drop_params = True  # drop params unsupported by some models (e.g. reasoning_effort on Nemotron)
 import argparse
 import asyncio
 import os
 import sys
 from pathlib import Path
 import warnings
+
+# fortiss public-Ollama auth patch — install before the env/user-simulator does
+# `from litellm import completion`, so the simulated user + policy judge can use
+# `fortiss/<model>` too.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import fortiss_ollama
+fortiss_ollama.install()
+# manual (human-as-LLM) round-trip — no-op unless MANUAL_LLM is set.
+import manual_llm
+manual_llm.install()
+sys.path.pop(0)
 
 import uvicorn
 from starlette.applications import Starlette

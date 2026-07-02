@@ -1,10 +1,11 @@
 """
 CAR-bench Agent - Agent under test that solves CAR-bench tasks.
 
-This is the agent being tested. It:
-1. Receives task descriptions with available tools from the evaluator
-2. Decides which tool to call or how to respond
-3. Returns responses in the expected JSON format wrapped in <json>...</json> tags
+The A2A boundary (parse inbound parts, render outbound parts, maintain per-context
+state, report turn_metrics) is unchanged. The single-pass LLM call has been
+replaced by the v4 reliability harness (Grounded Chain-of-Verification): see
+`harness/` and `harness/__init__.py`. Every harness layer is env-flag gated and
+fail-safe, so with the harness disabled this behaves as the original baseline.
 """
 import argparse
 import json
@@ -23,77 +24,136 @@ from a2a.server.tasks import TaskUpdater
 from a2a.helpers.proto_helpers import new_message, new_text_part, new_data_part, new_task_from_user_message
 from a2a.types import Role, TaskState
 from google.protobuf.json_format import MessageToDict
-from litellm import completion
+import litellm
+litellm.drop_params = True  # drop unsupported params (e.g. reasoning_effort on Nemotron)
+litellm.suppress_debug_info = True  # silence cosmetic "Provider List"/bedrock log spam
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from logging_utils import configure_logger
 from tool_call_types import ToolCall, ToolCallsData
 from turn_metrics import TURN_METRICS_KEY, PROMPT_TOKENS, COMPLETION_TOKENS, COST, MODEL, THINKING_TOKENS, NUM_LLM_CALLS, AVG_LLM_CALL_TIME_MS, NUM_PASSES
+# fortiss public-Ollama auth patch — install BEFORE the harness imports
+# `from litellm import completion`, so the bound reference is the patched one.
+import fortiss_ollama
+fortiss_ollama.install()
+# manual (human-as-LLM) round-trip — patch AFTER fortiss so it is outermost.
+# No-op passthrough unless MANUAL_LLM is set.
+import manual_llm
+manual_llm.install()
 sys.path.pop(0)
+
+# Reliability harness (same directory, on sys.path via server.py).
+from harness import HarnessConfig, CoVeOrchestrator, ContextState
+from harness.prompts import HARNESS_SYSTEM_SUFFIX
 
 logger = configure_logger(role="agent_under_test", context="-")
 
-SYSTEM_PROMPT = """You are a helpful car voice assistant. Follow the policy and tool instructions provided."""
+# Surface the harness's stdlib logs (policy compile, CoVe rounds, findings) so we
+# can see what the teacher actually did. Level via HARNESS_LOG_LEVEL (default INFO).
+import logging as _stdlog
+_harness_logger = _stdlog.getLogger("harness")
+if not _harness_logger.handlers:
+    _h = _stdlog.StreamHandler(sys.stdout)
+    _h.setFormatter(_stdlog.Formatter("HARNESS | %(name)s | %(message)s"))
+    _harness_logger.addHandler(_h)
+    _harness_logger.setLevel(os.getenv("HARNESS_LOG_LEVEL", "INFO").upper())
+    _harness_logger.propagate = False
 
 
 class CARBenchAgentExecutor(AgentExecutor):
-    """Executor for the CAR-bench agent under test using native tool calling."""
+    """Executor for the CAR-bench agent under test using native tool calling,
+    wrapped in the Grounded Chain-of-Verification reliability harness."""
 
     def __init__(self, model: str, temperature: float = 0.0, thinking: bool = False, reasoning_effort: str = "medium", interleaved_thinking: bool = False):
         self.model = model
         self.temperature = temperature
         self.thinking = thinking
-        self.reasoning_effort = reasoning_effort  # Can be 'none', 'disable', 'low', 'medium', 'high', or integer token budget
-        self.interleaved_thinking = interleaved_thinking  # Whether to use interleaved thinking
+        self.reasoning_effort = reasoning_effort
+        self.interleaved_thinking = interleaved_thinking
+
+        # Build the harness configuration from CLI args + env flags.
+        self.cfg = HarnessConfig.from_env(
+            model=model,
+            temperature=temperature,
+            thinking=thinking,
+            reasoning_effort=reasoning_effort,
+            interleaved_thinking=interleaved_thinking,
+        )
+        self.orchestrator = CoVeOrchestrator(self.cfg)
+        logger.info("Harness configured", **self.cfg.summary())
+
+        # Per-context conversation + harness state.
         self.ctx_id_to_messages: dict[str, list[dict]] = {}
         self.ctx_id_to_tools: dict[str, list[dict]] = {}
-        # Per-context turn metrics accumulation (reset when final response is sent)
         self.ctx_id_to_turn_metrics: dict[str, dict] = {}
+        self.ctx_id_to_state: dict[str, ContextState] = {}
+
+
+
+
+
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+
+        # ---- (debug) request context ------------------------------------- #
+        task_id = getattr(context, 'task_id', 'N/A')
+        context_id = getattr(context, 'context_id', 'N/A')
+        current_task = getattr(context, 'current_task', None)
+        
+        try:
+            user_input = context.get_user_input()
+        except Exception:
+            user_input = "No text payload"
+        print(
+            f"\n\n [RED - car_bench_agent.py]  --- Starting execution loop...\n"
+            f"--- [REQUEST CONTEXT] ---\n"
+            f"• Task ID:     {task_id}\n"
+            # f"• Context ID:  {context_id}\n"
+            # f"• Current Task: {current_task}\n"
+            # f"• User Input:   {user_input}\n"
+            f"-------------------------\n"
+        )
+
         inbound_message = context.message
         ctx_logger = logger.bind(role="agent_under_test", context=f"ctx:{context.context_id[:8]}")
 
-        # Initialize or get conversation history
         if context.context_id not in self.ctx_id_to_messages:
             self.ctx_id_to_messages[context.context_id] = []
 
         messages = self.ctx_id_to_messages[context.context_id]
         tools = self.ctx_id_to_tools.get(context.context_id, [])
 
-        # Parse the incoming A2A Message with Parts (now protobuf)
+        # ---- parse the inbound A2A message (protobuf parts) -------------- #
         user_message_text = None
-        incoming_tool_results = None  # Structured tool results from evaluator
+        incoming_tool_results = None
 
         try:
             for part in inbound_message.parts:
                 content_type = part.WhichOneof("content")
                 if content_type == "text":
                     text = part.text
-                    # Parse system prompt and user message from formatted text
                     if "System:" in text and "\n\nUser:" in text:
-                        # First message with system prompt
+                        # First message: "System: <policy>\n\nUser: <request>"
                         parts_split = text.split("\n\nUser:", 1)
                         system_prompt = parts_split[0].replace("System:", "").strip()
                         user_message_text = parts_split[1].strip()
-                        if not messages:  # Only add system prompt once
-                            messages.append({"role": "system", "content": system_prompt})
+                        if not messages:  # add system prompt once
+                            sys_content = system_prompt
+                            if self.cfg.enable_system_prompt:
+                                sys_content = system_prompt + "\n\n" + HARNESS_SYSTEM_SUFFIX
+                            messages.append({"role": "system", "content": sys_content})
                     else:
-                        # Regular user message
                         user_message_text = text
 
                 elif content_type == "data":
-                    # Extract tools or tool results from data Part
                     data = MessageToDict(part.data)
                     if "tools" in data:
                         tools = data["tools"]
                         self.ctx_id_to_tools[context.context_id] = tools
                     elif "tool_results" in data:
-                        # Structured tool results from the evaluator
                         incoming_tool_results = data["tool_results"]
 
-            # Fallback if no text part and no structured tool results found
             if not user_message_text and not incoming_tool_results:
                 user_message_text = context.get_user_input()
 
@@ -114,22 +174,18 @@ class CARBenchAgentExecutor(AgentExecutor):
                 has_tool_results=bool(incoming_tool_results),
                 num_tool_results=len(incoming_tool_results) if incoming_tool_results else 0
             )
-
         except Exception as e:
             logger.warning(f"Failed to parse message parts: {e}, using fallback")
             user_message_text = context.get_user_input()
 
-        # Check if previous message had tool calls - if so, format as tool results
+        # ---- append tool results or the user message to history ---------- #
         if messages and messages[-1].get("role") == "assistant" and messages[-1].get("tool_calls"):
             prev_tool_calls = messages[-1]["tool_calls"]
 
             if incoming_tool_results:
-                # Structured tool results from evaluator — match each result
-                # to its corresponding tool_call_id by tool name
                 tool_call_by_name = {}
                 for tc in prev_tool_calls:
                     name = tc["function"]["name"]
-                    # If multiple calls to the same tool, use a list
                     tool_call_by_name.setdefault(name, []).append(tc)
 
                 tool_results = []
@@ -137,219 +193,142 @@ class CARBenchAgentExecutor(AgentExecutor):
                     tr_name = tr.get("tool_name", "") if isinstance(tr, dict) else tr.get("toolName", "")
                     matching_calls = tool_call_by_name.get(tr_name, [])
                     if matching_calls:
-                        # Pop the first matching call to handle duplicate tool names
                         matched_tc = matching_calls.pop(0)
                         tool_results.append({
                             "role": "tool",
                             "tool_call_id": matched_tc["id"],
+                            "name": tr_name,
                             "content": tr.get("content", ""),
                         })
                     else:
-                        # Fallback: no matching tool_call found, use first unmatched
-                        ctx_logger.warning(
-                            "No matching tool_call_id for tool result",
-                            tool_name=tr_name,
-                        )
+                        ctx_logger.warning("No matching tool_call_id for tool result", tool_name=tr_name)
                         tool_results.append({
                             "role": "tool",
                             "tool_call_id": tr.get("tool_call_id", tr.get("toolCallId", f"unknown_{tr_name}")),
+                            "name": tr_name,
                             "content": tr.get("content", ""),
                         })
             else:
-                # Fallback: no structured tool results, use the text message
-                # for all tool calls (legacy behavior)
                 tool_results = []
                 for tc in prev_tool_calls:
                     tool_results.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
+                        "name": tc["function"]["name"],
                         "content": user_message_text or "",
                     })
 
-            # Add all tool result messages
             messages.extend(tool_results)
-
             ctx_logger.debug(
                 "Formatted tool results",
                 num_tools=len(tool_results),
                 tool_call_ids=[tr["tool_call_id"] for tr in tool_results]
             )
         else:
-            # Regular user message
             messages.append({"role": "user", "content": user_message_text})
 
-        # Call LLM with native tool calling
-        try:
-            # Configure prompt caching (guard against empty lists)
-            if tools:
-                tools[-1]["function"]["cache_control"] = {"type": "ephemeral"}
-            if messages:
-                messages[0]["cache_control"] = {"type": "ephemeral"}
+        # ---- prompt caching hints --------------------------------------- #
+        # Only for Anthropic/Claude, where ephemeral caching helps and is free to
+        # set. On Gemini, litellm maps cache_control to context caching, whose
+        # free-tier storage quota (TotalCachedContentStorageTokensPerModelFreeTier)
+        # is tiny and 429s immediately. Override with ENABLE_PROMPT_CACHE=1/0.
+        _pc = os.getenv("ENABLE_PROMPT_CACHE")
+        _use_cache = (_pc.strip().lower() in ("1", "true", "yes", "on")) if _pc else ("claude" in self.model.lower())
+        if _use_cache:
+            try:
+                if tools:
+                    tools[-1]["function"]["cache_control"] = {"type": "ephemeral"}
+                if messages:
+                    messages[0]["cache_control"] = {"type": "ephemeral"}
+            except Exception:
+                pass
 
-            completion_kwargs = {
-                "model": self.model,
-                "tools": tools if tools else None
+        # ---- turn metrics sink (records every internal LLM call) --------- #
+        if context.context_id not in self.ctx_id_to_turn_metrics:
+            self.ctx_id_to_turn_metrics[context.context_id] = {
+                PROMPT_TOKENS: 0,
+                COMPLETION_TOKENS: 0,
+                THINKING_TOKENS: 0,
+                COST: 0.0,
+                NUM_LLM_CALLS: 0,
+                "_total_llm_time_ms": 0.0,
             }
+        turn_m = self.ctx_id_to_turn_metrics[context.context_id]
 
-            if self.temperature is not None:
-                completion_kwargs["temperature"] = self.temperature
-
-            # Configure reasoning effort / thinking
-            if self.thinking:
-                    if self.model == "claude-opus-4-6":
-                        completion_kwargs["thinking"] = {
-                            "type": "adaptive"
-                        }
-                    else:
-                        if self.reasoning_effort in [
-                            "none",
-                            "disable",
-                            "low",
-                            "medium",
-                            "high",
-                        ]:
-                            completion_kwargs["reasoning_effort"] = self.reasoning_effort
-                        else:
-                            try:
-                                thinking_budget = int(self.reasoning_effort)
-                            except ValueError:
-                                raise ValueError(
-                                    "reasoning_effort must be 'none', 'disable', 'low', 'medium', 'high', or an integer value"
-                                )
-                            completion_kwargs["thinking"] = {
-                                "type": "enabled",
-                                "budget_tokens": thinking_budget,
-                            }
-                    if self.interleaved_thinking:
-                        completion_kwargs["extra_headers"] = {
-                                "anthropic-beta": "interleaved-thinking-2025-05-14"
-                            }
-
-
-            call_start_time = time.perf_counter()
-            response = completion(
-                messages=messages,
-                **completion_kwargs
-            )
-
-            # Accumulate turn metrics for this LLM call
-            call_end_time = time.perf_counter()
-            call_elapsed_ms = (call_end_time - call_start_time) * 1000.0
-
-            if context.context_id not in self.ctx_id_to_turn_metrics:
-                self.ctx_id_to_turn_metrics[context.context_id] = {
-                    PROMPT_TOKENS: 0,
-                    COMPLETION_TOKENS: 0,
-                    THINKING_TOKENS: 0,
-                    COST: 0.0,
-                    NUM_LLM_CALLS: 0,
-                    "_total_llm_time_ms": 0.0,
-                }
-
-            turn_m = self.ctx_id_to_turn_metrics[context.context_id]
-            usage = getattr(response, "usage", None)
-            if usage:
-                turn_m[PROMPT_TOKENS] += getattr(usage, "prompt_tokens", 0) or 0
-                turn_m[COMPLETION_TOKENS] += getattr(usage, "completion_tokens", 0) or 0
-                # Some providers report thinking/reasoning tokens in completion_tokens_details
-                details = getattr(usage, "completion_tokens_details", None)
-                if details:
-                    turn_m[THINKING_TOKENS] += getattr(details, "reasoning_tokens", 0) or 0
-            turn_m[COST] += getattr(response, "_hidden_params", {}).get("response_cost", 0.0) or 0.0
+        def _record(prompt_tokens, completion_tokens, thinking_tokens, cost, elapsed_ms):
+            turn_m[PROMPT_TOKENS] += prompt_tokens
+            turn_m[COMPLETION_TOKENS] += completion_tokens
+            turn_m[THINKING_TOKENS] += thinking_tokens
+            turn_m[COST] += cost
             turn_m[NUM_LLM_CALLS] += 1
-            turn_m["_total_llm_time_ms"] += call_elapsed_ms
+            turn_m["_total_llm_time_ms"] += elapsed_ms
 
-            # Get the message from LLM
-            llm_message = response.choices[0].message
-            assistant_content = llm_message.model_dump(exclude_unset=True)
+        # ---- per-context harness state ---------------------------------- #
+        ctx_state = self.ctx_id_to_state.get(context.context_id)
+        if ctx_state is None:
+            ctx_state = ContextState()
+            ctx_state._context_id = context.context_id  # for trace correlation
+            self.ctx_id_to_state[context.context_id] = ctx_state
 
-            # Extract tool calls from assistant content
+        # ---- run the reliability harness for this turn ------------------ #
+        num_passes = 1
+        try:
+            assistant_content = self.orchestrator.run_turn(
+                messages, tools if tools else None, ctx_state, record=_record
+            )
+            num_passes = assistant_content.pop("num_passes", 1)
+
             tool_calls = assistant_content.get("tool_calls")
-
             ctx_logger.info(
-                "LLM response received",
-                has_tool_calls=bool(tool_calls),
-                num_tool_calls=len(tool_calls) if tool_calls else 0,
-                has_content=bool(assistant_content.get("content")),
-                content_length=len(assistant_content.get("content") or ""),
-                has_thinking=bool(assistant_content.get("thinking_blocks") or assistant_content.get("reasoning_content"))
-            )
-            ctx_logger.debug(
-                "LLM response details",
-                context_id=context.context_id[:8],
-                content=assistant_content.get("content"),
-                tool_calls=[{"name": tc["function"]["name"], "args": tc["function"]["arguments"]} for tc in tool_calls] if tool_calls else None,
-                reasoning_content=assistant_content.get("reasoning_content")
+                f"Harness turn complete | num_passes={num_passes} | "
+                f"tool_calls={len(tool_calls) if tool_calls else 0} | "
+                f"content_len={len(assistant_content.get('content') or '')}"
             )
 
-            # Build proper A2A Message with Parts (protobuf)
+            # Build A2A Message Parts (protobuf)
             parts = []
-
-            # Add text Part if there's content
             if assistant_content.get("content"):
                 parts.append(new_text_part(assistant_content["content"]))
-
-            # Add data Part if there are tool calls
             if assistant_content.get("tool_calls"):
-                tool_calls_list = [
-                    ToolCall(
-                        tool_name=tc["function"]["name"],
-                        arguments=json.loads(tc["function"]["arguments"]),
-                    )
-                    for tc in assistant_content["tool_calls"]
-                ]
+                tool_calls_list = []
+                for tc in assistant_content["tool_calls"]:
+                    raw_args = tc["function"]["arguments"]
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+                    tool_calls_list.append(ToolCall(tool_name=tc["function"]["name"], arguments=args))
                 tool_calls_data = ToolCallsData(tool_calls=tool_calls_list)
                 parts.append(new_data_part(tool_calls_data.model_dump()))
-
-            # Add reasoning_content as data Part for debugging (if present)
             if assistant_content.get("reasoning_content"):
                 parts.append(new_data_part({"reasoning_content": assistant_content["reasoning_content"]}))
-
-            # If no parts, add empty text
             if not parts:
-                parts.append(new_text_part(assistant_content.get("content", "")))
-
-            ctx_logger.debug(
-                "Sending response",
-                context_id=context.context_id[:8],
-                num_parts=len(parts),
-            )
+                parts.append(new_text_part(assistant_content.get("content", "") or ""))
 
         except Exception as e:
-            logger.error(f"LLM error: {e}")
-            # Error response as Parts
+            logger.error(f"Harness/LLM error: {e}")
             parts = [new_text_part(f"Error processing request: {str(e)}")]
-            # Create a simple assistant_content for error case
             assistant_content = {"content": f"Error processing request: {str(e)}"}
 
-        # Add to history - preserve complete assistant message including thinking blocks
-        # Store the full assistant_content to preserve thinking blocks and reasoning_content
+        # ---- commit assistant message to history ------------------------ #
         assistant_message_for_history = {
             "role": "assistant",
             "content": assistant_content.get("content"),
         }
-
-        # Preserve tool calls in proper format for LLM API
         if assistant_content.get("tool_calls"):
             assistant_message_for_history["tool_calls"] = assistant_content["tool_calls"]
-
-        # Preserve thinking blocks and reasoning content for Claude extended thinking
         if assistant_content.get("thinking_blocks"):
             assistant_message_for_history["thinking_blocks"] = assistant_content["thinking_blocks"]
         if assistant_content.get("reasoning_content"):
             assistant_message_for_history["reasoning_content"] = assistant_content["reasoning_content"]
-
         messages.append(assistant_message_for_history)
 
-        # Always return a Message — the agent under test is a conversational participant
-        # in a multi-turn exchange. The evaluator decides when the task is done.
+        # ---- build outbound A2A message --------------------------------- #
         response_message = new_message(
             parts=parts,
             context_id=context.context_id,
             role=Role.ROLE_AGENT,
         )
 
-        # Attach turn_metrics on final response (no tool calls = turn complete)
+        # Attach turn_metrics on the final response of an assistant step
+        # (no tool calls => the turn is complete).
         has_tool_calls = bool(assistant_content.get("tool_calls"))
         if not has_tool_calls and context.context_id in self.ctx_id_to_turn_metrics:
             turn_m = self.ctx_id_to_turn_metrics.pop(context.context_id)
@@ -363,12 +342,13 @@ class CARBenchAgentExecutor(AgentExecutor):
                 THINKING_TOKENS: turn_m[THINKING_TOKENS],
                 NUM_LLM_CALLS: num_calls,
                 AVG_LLM_CALL_TIME_MS: round(avg_time, 1),
-                NUM_PASSES: 1,
+                NUM_PASSES: num_passes,
             }
             response_message.metadata.update({TURN_METRICS_KEY: metrics_data})
             ctx_logger.info(
                 "Attached turn_metrics to final response",
                 num_llm_calls=num_calls,
+                num_passes=num_passes,
                 avg_llm_call_time_ms=round(avg_time, 1),
                 prompt_tokens=turn_m[PROMPT_TOKENS],
                 completion_tokens=turn_m[COMPLETION_TOKENS],
@@ -377,14 +357,10 @@ class CARBenchAgentExecutor(AgentExecutor):
         await event_queue.enqueue_event(response_message)
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
-        """Cancel the current execution."""
+        """Cancel the current execution and drop per-context state."""
         logger.bind(role="agent_under_test", context=f"ctx:{context.context_id[:8]}").info(
-            "Canceling context",
-            context_id=context.context_id[:8]
+            "Canceling context", context_id=context.context_id[:8]
         )
-        if context.context_id in self.ctx_id_to_messages:
-            del self.ctx_id_to_messages[context.context_id]
-        if context.context_id in self.ctx_id_to_tools:
-            del self.ctx_id_to_tools[context.context_id]
-        if context.context_id in self.ctx_id_to_turn_metrics:
-            del self.ctx_id_to_turn_metrics[context.context_id]
+        for store in (self.ctx_id_to_messages, self.ctx_id_to_tools,
+                      self.ctx_id_to_turn_metrics, self.ctx_id_to_state):
+            store.pop(context.context_id, None)

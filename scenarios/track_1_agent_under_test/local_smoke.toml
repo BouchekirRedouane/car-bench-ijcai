@@ -6,10 +6,14 @@ endpoint = "http://127.0.0.1:8081"
 cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
 
 [agent_under_test]
-endpoint = "http://127.0.0.1:8080"
-cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8080 --agent-llm azure/gpt-5.5"
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/google/gemini-2.5-flash"
 
 [config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
 num_trials = 1
 task_split = "train"
 tasks_base_num_tasks = 1

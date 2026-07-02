@@ -6,6 +6,10 @@
 [![A2A](https://img.shields.io/badge/A2A-Protocol-blue.svg)](https://a2a-protocol.org)
 [![Website](https://img.shields.io/badge/Website-CAR--bench-blue)](https://car-bench.github.io/car-bench/)
 
+> **Track 1 submission — GCoVe reliability harness**: our agent-under-test wraps the LLM in a
+> Grounded Chain-of-Verification harness (deterministic gates + evidence-grounded LLM teacher).
+> Idea, algorithm, usage and configuration: **[HARNESS_README.md](HARNESS_README.md)**.
+
 Dockerized A2A starter kit for the CAR-bench Challenge at IJCAI-ECAI 2026.
 
 [Overview](#overview) | [Setup](#setup) | [Build An Agent](#build-an-agent) | [Validate](#validate-your-agent) | [Submit](#submission-instructions) | [Evaluation](#evaluation-summary) | [Read More](#read-more)

@@ -1,0 +1,22 @@
+# Hallucination-only scenario (Track 1). Runs only hallucination tasks because
+# base/disambiguation `tasks_*_num_tasks` keys are omitted -> those types are skipped.
+# Bump tasks_hallucination_num_tasks (or set to -1 for the whole split) as needed.
+
+[evaluator]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/anthropic/claude-sonnet-4.6"
+
+[config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
+num_trials = 1
+task_split = "train"
+tasks_hallucination_task_id_filter = ["hallucination_16", "hallucination_24", "hallucination_38", "hallucination_40", "hallucination_48"]
+
+max_steps = 50

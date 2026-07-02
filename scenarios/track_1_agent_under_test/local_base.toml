@@ -1,0 +1,24 @@
+# Base-only scenario (Track 1). Base tasks score the full reward chain
+# (final state + intermediate state + tool subset + execution + policy +
+# end-conversation), so this measures whether the harness helps or hurts where
+# actions are actually graded. Bump tasks_base_num_tasks (or set -1 for the
+# whole split) as needed; add tasks_base_task_id_filter for specific ids.
+
+[evaluator]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/anthropic/claude-sonnet-4.6"
+
+[config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
+num_trials = 1
+task_split = "train"
+tasks_base_num_tasks = 5
+
+max_steps = 50

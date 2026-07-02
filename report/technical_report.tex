@@ -1,0 +1,317 @@
+%% CAR-bench Challenge @ IJCAI-ECAI 2026 -- Track 1 Technical Report
+%% Drop the IJCAI author-kit style files (ijcai26.sty, named.bst / ijcai26.bst)
+%% into this directory, then: pdflatex technical_report ; bibtex technical_report ; pdflatex x2
+%% Numbers in Section 5 are PRELIMINARY placeholders -- update with final Pass^3 results.
+
+\documentclass{article}
+\pdfpagewidth=8.5in
+\pdfpageheight=11in
+\usepackage{ijcai26}              % from the IJCAI author kit
+\usepackage{times}
+\usepackage{soul}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[small]{caption}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\urlstyle{same}
+
+\title{Grounded Chain-of-Verification: A Deterministic Reliability Shell\\
+for Consistent Tool-Using Agents}
+
+\author{
+Anonymous Submission\\
+\affiliations
+CAR-bench Challenge @ IJCAI-ECAI 2026 --- Track 1 (Open Track)\\
+\emails
+your-email@example.org
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+CAR-bench measures whether tool-using LLM agents are \emph{deployment-reliable}
+under real-world uncertainty, scored by \textbf{Pass\textsuperscript{3}}: a task
+counts only if solved in all three independent trials. Baselines reveal a
+systematic \emph{Completion $>$ Compliance} bias: models prefer finishing a task to
+admitting incapability---fabricating tool outputs instead of acknowledging limits,
+and guessing instead of clarifying. We present a \textbf{deterministic reliability
+shell} wrapped around an unchanged LLM core that inverts this bias and reduces
+Pass\textsuperscript{3} variance. The shell is a \textbf{Grounded
+Chain-of-Verification (GCoVe)} loop: the model drafts an action; a \emph{teacher}
+interrogates it with decomposed questions whose answers come from \emph{deterministic
+/ grounded oracles}---the provided tool schema, a provenance ledger of received data,
+and a policy compiled at runtime---rather than from a second, possibly weaker, model;
+the model revises against those \emph{facts}. Because checking a narrow grounded claim
+is easier than generating a correct trajectory (\emph{verification asymmetry}), the
+teacher need not exceed the student. The harness is environment-configurable,
+fail-safe, and contains no task- or tool-specific hardcoding, so it transfers to the
+hidden test set. On a controlled subset (gemini-2.5-flash) an ablation lifts
+hallucination Pass\textsuperscript{1} from 50\% to 90\% as gates are added; across all
+48 training hallucination tasks the shell reaches Pass\textsuperscript{1}~=~0.56 with
+the same modest model (baseline 0.41 Pass\textsuperscript{3}).
+\end{abstract}
+
+\section{Problem and Insights}
+CAR-bench~\cite{kirmayr2026carbench} instantiates an in-car voice-assistant domain
+with 58 interconnected tools, 19 domain policies, an LLM-simulated multi-turn user,
+and three task types: \emph{Base} (correct tool use, state, and policy),
+\emph{Hallucination} (admit a missing tool / parameter / result instead of
+fabricating), and \emph{Disambiguation} (resolve ambiguity via preferences/context,
+else clarify). The ranking metric is \textbf{Pass\textsuperscript{3}}. We build only
+the \emph{agent under test}; the organizer-owned evaluator owns the simulated user,
+tool execution, and scoring. Four observations drive the design.
+
+\paragraph{(I1) The failure is a bias, not incapacity.} Models often \emph{can} solve
+a task (high Pass@3) yet are \emph{inconsistent} (low Pass\textsuperscript{3}), and on
+hallucination/disambiguation default to acting/guessing. A bias must be corrected by
+\emph{structure}, not by sampling.
+
+\paragraph{(I2) Reads are free; writes are costly.} Intermediate-state scoring is a
+\emph{subset} check over state hashes, and read tools do not change state;
+tool-subset is $\textit{ground\_truth} \subseteq \textit{performed}$. Extra
+information-gathering never hurts, while every extra state-changing call can fail the
+task. This licenses an aggressive \emph{gather-first, act-minimal} policy.
+
+\paragraph{(I3) Pass\textsuperscript{3} is won by removing variance.}
+$\textrm{Pass}^3 = p^3$. Every decision moved out of the stochastic LLM into
+deterministic post-processing raises $p$ toward~1.
+
+\paragraph{(I4) The three task types collapse into one policy.} The agent never sees
+the task type. A single \emph{uncertainty ladder}---\emph{gather more} $\rightarrow$
+\emph{admit} (capability missing) $\rightarrow$ \emph{ask} ($\geq 2$ valid options)
+$\rightarrow$ \emph{act} (minimal)---yields correct behaviour for all three types with
+no task classification.
+
+\section{Approach: Grounded Chain-of-Verification}
+We adapt Chain-of-Verification~\cite{dhuliawala2023cove} to a tool-agent setting with
+one critical change: \textbf{the teacher answers its verification questions from
+grounded oracles, not from an LLM}. This turns CoVe from a hallucination-reducer that
+can repeat its own errors into a \emph{convergence} mechanism: across independent
+trials, divergent drafts are pulled toward the same grounded-correct action---exactly
+what Pass\textsuperscript{3} rewards.
+
+\paragraph{Roles.} \emph{Student} = the action model (\texttt{AGENT\_LLM}).
+\emph{Teacher} = a verifier (\texttt{TEACHER\_LLM}, defaults to the student). The design
+never assumes teacher $>$ student; its power comes from \emph{decomposition +
+grounding}, not a capability gap.
+
+\begin{figure}[t]
+\centering
+\small
+\begin{verbatim}
+ inputs -> S1 STUDENT DRAFT
+        -> S2/3 TEACHER VERIFY (grounded)
+        -> S4 REVISE (<= k rounds)
+        -> POST-REVISE DETERMINISTIC RE-CHECK
+        -> SANITIZE -> output
+ feeds: Runtime Policy Compiler | Provenance
+        Ledger | Gather Guard
+\end{verbatim}
+\caption{The deterministic reliability shell (GCoVe loop).}
+\label{fig:loop}
+\end{figure}
+
+\subsection{Verification questions (gates)}
+The teacher runs a fixed schema, instantiated per draft. Each question is answered at
+the cheapest reliable tier: \textbf{(A)} deterministic oracle, \textbf{(B)}
+grounded-easy LLM, or \textbf{(C)} residual semantic.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}p{0.5cm}p{4.6cm}cp{0.7cm}@{}}
+\toprule
+\# & Verification question & Tier & Target\\
+\midrule
+Q1 & Tool/parameter exists in provided tools? & A & Hal.\\
+Q2 & Argument ids trace to received data? & A & Hal.\\
+Q3 & Precondition needs a capability with no available tool? & A & Hal.\\
+Q4 & Reply claims an action done with no tool executed? & A & Hal.\\
+Q5 & Reply states value/status/field unsupported by data? & B & Hal.\\
+Q6 & State change before gathering required reads? & A & Dis.\\
+Q7 & A policy rule applies (confirm/auto/disclose)? & A & Pol.\\
+Q8 & After gathering, $\geq 2$ valid options remain? & C & Dis.\\
+Q9 & Output TTS-clean, correct units? & A & Pol.\\
+\bottomrule
+\end{tabular}
+\caption{Verification schema. Tier A = deterministic, B = grounded-easy LLM, C =
+residual semantic. Hal.=Hallucination, Dis.=Disambiguation, Pol.=Policy.}
+\label{tab:gates}
+\end{table}
+
+The teacher returns grounded findings; the student revises against them (CoVe S4),
+bounded by \texttt{COVE\_ROUNDS} and capped to \texttt{MAX\_FINDINGS} so a weak model
+is not overloaded. Findings are emitted in severity order, deterministic gates first.
+
+\subsection{Runtime policy compilation}
+The agent cannot distinguish deterministically-checked from LLM-judged policies---both
+are plain text. At startup we compile \emph{whatever policy text is provided} into a
+typed rule IR (\emph{precondition, auto\_action, confirmation, prohibition, disclosure,
+constraint, selection}), each with \texttt{trigger\_tools} and a \texttt{requirement},
+via one LLM call, schema-validated and \emph{cached by a hash of the policy} (no
+per-task variance). Approximate triggers are resolved to real tool names at match time
+by a deterministic fuzzy matcher that preserves action verbs (so a write tool is not
+confused with a read tool of the same subject). Because it compiles the \emph{provided}
+text and classifies into generic rule \emph{shapes}, it generalises to unseen
+policies---the hidden test set's policy is provided at run time exactly as in
+development.
+
+\subsection{Deterministic gates}
+\textbf{Provenance ledger}: accumulates every grounded value (system facts,
+user-stated values, all tool-result fields) and flags invented ids.
+\textbf{Capability/admit gate}: if a precondition requires \emph{changing} a subsystem
+that has no available \emph{write} tool, it is unsatisfiable---admit, do not substitute
+a related tool. \textbf{Completion gate}: a reply declaring an action done while no
+state-changing tool ran is a fabrication. \textbf{Claim-grounding gate}: a reply may
+state only facts supported by the actual tool results / passed arguments (catches
+missing-parameter and missing-response hallucinations). \textbf{Gather guard}: require
+the reads the request and applicable rules depend on before any state change.
+\textbf{Post-revise re-check}: re-runs the deterministic gates (no LLM) on the revised
+draft and applies one corrective fix, so a revision can never silently introduce a new
+violation (e.g.\ re-adding a removed parameter). \textbf{TTS sanitizer}: strips
+markdown/lists/emoji, enforces spoken form.
+
+\subsection{Design principles}
+\emph{Asymmetric grounded verification}---narrow grounded checks are reliable even
+when teacher $=$ student; residual semantic questions (Q8) are minimised by
+gathering-to-collapse and may use a stronger \texttt{TEACHER\_LLM}.
+\emph{Fail-safe}---every layer is wrapped; any error returns the plain student draft,
+so the shell never scores below baseline by crashing. \emph{No hardcoding}---no tool
+name, value, task id, or policy number is hardcoded; every gate is driven by the
+provided tools, results, and compiled policy, so the solution transfers unchanged to
+the hidden benchmark. \emph{Env-configurable \& ablatable}---model/provider/effort and
+every layer are environment variables (Table~\ref{tab:cfg}).
+
+\section{Experimental Results}
+\textbf{Setup.} CAR-bench \emph{training} split, Hallucination task type (all 48
+tasks), \texttt{gemini-2.5-flash} as \emph{both} student and teacher---a deliberately
+modest model (leaderboard hallucination Pass\textsuperscript{3} $\approx 0.41$), to
+isolate the \emph{harness} contribution rather than model strength. Single trial
+(Pass\textsuperscript{1}). The harness records a per-turn trace for attribution.
+
+\paragraph{Ablation (10-task dev subset).} Holding tasks and model fixed, each layer
+monotonically raises Pass\textsuperscript{1}, each gain attributable in the traces to a
+specific gate (Table~\ref{tab:ablation}): the \emph{capability gate} turns missing-tool
+tasks from fabrication/substitution into correct admission; the \emph{claim-grounding
+gate} flips missing-parameter cases; the \emph{post-revise re-check} catches a revision
+that re-introduced a removed parameter; the \emph{feedback-leak guard} stops the revise
+note from derailing the dialogue.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lc@{}}
+\toprule
+Harness configuration & Pass\textsuperscript{1}\\
+\midrule
+capability gate + runtime policy compiler & 50\% (5/10)\\
+\quad + claim-grounding gate & 70\% (7/10)\\
+\quad + post-revise re-check + leak guard & \textbf{90\% (9/10)}\\
+\bottomrule
+\end{tabular}
+\caption{Ablation on the fixed 10-task subset \texttt{hallucination\_0--18}.}
+\label{tab:ablation}
+\end{table}
+
+\paragraph{Full hallucination set (48 tasks).} Table~\ref{tab:full} reports
+Pass\textsuperscript{1} by subtype. For reference, the published
+\texttt{gemini-2.5-flash} baseline scores \textbf{0.41 on hallucination
+(Pass\textsuperscript{3})}; our \textbf{0.56 (Pass\textsuperscript{1})} on the same
+model is encouraging, though the metrics differ.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lc@{}}
+\toprule
+Subtype & Pass\textsuperscript{1}\\
+\midrule
+missing\_tool & 21/33 = 0.64\\
+missing\_parameter & 5/8 = 0.63\\
+missing\_response & 1/7 = 0.14\\
+\midrule
+\textbf{Overall} & \textbf{27/48 = 0.56}\\
+\bottomrule
+\end{tabular}
+\caption{Full training-split hallucination results (Pass\textsuperscript{1}).}
+\label{tab:full}
+\end{table}
+
+\paragraph{Failure analysis.} The 21 failures cluster into three causes, mapping onto
+the harness's known boundary: (1)~\emph{missing\_response} (6/7 fail)---fabrication that
+lives in the \emph{tool calls} (acting on a removed result \emph{field}), invisible to
+the reply-level claim-grounding gate; the weakest subtype and clear next target;
+(2)~\emph{navigation missing\_tool} where a removed tool has surviving siblings
+(e.g.\ delete-destination removed, delete-waypoint stays), tempting substitution---among
+the hardest tasks (1/12 frontier baselines solve some); (3)~a few multi-turn
+\emph{dialogue derailments} (\texttt{OUT\_OF\_SCOPE}).
+
+\paragraph{Threats to validity.} These are single-trial (Pass\textsuperscript{1})
+numbers on a modest model; the ranking metric Pass\textsuperscript{3} is stricter and
+will be lower, and the simulated user is stochastic. We report Pass\textsuperscript{1}
+as evidence the mechanism works (the controlled ablation) and as a representative
+full-set figure; final submission numbers are Pass\textsuperscript{3} on the hidden set.
+
+\section{Submission Artifacts and Compliance}
+Per the contract we submit only the agent under test: (1)~a public digest-pinned GHCR
+image (\texttt{linux/amd64}); (2)~a \texttt{scenario.toml} using the official evaluator
+image with \texttt{task\_split = "hidden"}, \texttt{num\_trials = 3}, all task counts
+$-1$; (3)~the environment-variable names in Table~\ref{tab:cfg} (no secret values);
+(4)~this report. The harness preserves the A2A boundary exactly: it executes no
+CAR-bench tools, inspects no hidden task/evaluator state, adds no private tools, and
+never renames tools or parameters; all internal reasoning uses only evaluator-provided
+inputs (policy text, tool definitions, tool results, transcript).
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}p{3.4cm}p{4.0cm}@{}}
+\toprule
+Variable & Purpose\\
+\midrule
+\texttt{AGENT\_LLM}, \texttt{*\_API\_*}, \texttt{AGENT\_TEMPERATURE} & student model/route\\
+\texttt{TEACHER\_LLM} & verifier (defaults to student)\\
+\texttt{ENABLE\_HARNESS} & master switch (off $\Rightarrow$ baseline)\\
+\texttt{ENABLE\_\{POLICY\_COMPILE, PROVENANCE, GATHER\_GUARD, HALLUC\_GATE, CAPABILITY, COMPLETION\_CHECK, CLAIM\_GROUNDING, POLICY\_ENFORCE, DISAMBIG, VERIFY, SANITIZE\}} & per-gate ablation\\
+\texttt{COVE\_ROUNDS}, \texttt{MAX\_FINDINGS}, \texttt{VOTE\_N} & loop depth / cap / vote width\\
+\texttt{HARNESS\_TRACE\{,\_DIR\}} & structured trace logging\\
+\bottomrule
+\end{tabular}
+\caption{Configuration; all behaviour is set via environment variables.}
+\label{tab:cfg}
+\end{table}
+
+\section{Limitations and Future Work}
+Action-level fabrication (missing-response used inside tool calls, not spoken) is not
+yet caught deterministically; it needs expected-output-field awareness. Disambiguation
+retains an irreducibly-semantic core (ask vs.\ resolve), mitigated by
+gathering-to-collapse and a stronger teacher. Self-consistency voting
+(\texttt{VOTE\_N}$>$1) is implemented as a hook and is the natural next Pass$^3$ lever.
+A budget-gated variant (deterministic gates always, LLM gates only on risky turns) is
+future work.
+
+\section{Conclusion}
+We frame CAR-bench's difficulty as a \emph{Completion $>$ Compliance} bias compounded
+by Pass\textsuperscript{3} variance, and address both with a deterministic,
+runtime-self-configuring reliability shell built as Grounded Chain-of-Verification.
+It exploits the benchmark's scoring structure (reads-free / writes-costly), compiles
+the provided policy into executable rules, and verifies the model's every action
+against grounded oracles---with no task-specific hardcoding, so it transfers to the
+hidden test set.
+
+\bibliographystyle{named}
+\begin{thebibliography}{1}
+\bibitem{kirmayr2026carbench}
+J.~Kirmayr, L.~Stappen, and E.~Andre.
+\newblock CAR-bench: Evaluating the consistency and limit-awareness of LLM agents
+under real-world uncertainty.
+\newblock {\em arXiv:2601.22027}, 2026.
+
+\bibitem{dhuliawala2023cove}
+S.~Dhuliawala, M.~Komeili, J.~Xu, R.~Raileanu, X.~Li, A.~Celikyilmaz, and J.~Weston.
+\newblock Chain-of-verification reduces hallucination in large language models.
+\newblock {\em arXiv:2309.11495}, 2023.
+\end{thebibliography}
+
+\end{document}
