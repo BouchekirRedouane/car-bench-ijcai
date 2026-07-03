@@ -492,6 +492,49 @@ def test_ask_guard_demands_policy_linked_reads():
 
 
 
+def test_call_substitution_fires_on_h48_shape():
+    """h_48 regression: 'Remove Essen ... Dortmund final' answered by CALLING
+    navigation_replace_final_destination — the candidate must fire BEFORE the
+    call executes."""
+    nav_tools = TOOLS + [
+        {"function": {"name": "navigation_replace_final_destination",
+                      "parameters": {"type": "object", "properties": {"destination_id": {"type": "string"}}}}},
+        {"function": {"name": "navigation_delete_waypoint",
+                      "parameters": {"type": "object", "properties": {"waypoint_id": {"type": "string"}}}}},
+    ]
+    msgs = [{"role": "system", "content": "p"},
+            {"role": "user", "content": "Remove Essen from my route. I want Dortmund to be my final destination."}]
+    draft = {"tool_calls": [{"function": {"name": "navigation_replace_final_destination",
+                                          "arguments": {"destination_id": "loc_dor_399984"}}}]}
+    findings = V.check_call_substitution(draft, msgs, nav_tools)
+    assert len(findings) == 1 and "navigation_replace_final_destination" in findings[0], findings
+    # a delete-type tool for the delete-type request is consistent -> silent
+    ok = {"tool_calls": [{"function": {"name": "navigation_delete_waypoint",
+                                       "arguments": {"waypoint_id": "loc_ess_699309"}}}]}
+    assert V.check_call_substitution(ok, msgs, nav_tools) == []
+
+
+def test_call_substitution_silent_on_ordinary_requests():
+    """Non-delete requests must never fire, whatever tool is called."""
+    msgs = [{"role": "system", "content": "p"},
+            {"role": "user", "content": "Can you turn on the front window defrost? It's foggy."}]
+    draft = {"tool_calls": [{"function": {"name": "set_window_defrost",
+                                          "arguments": {"on": True, "defrost_window": "FRONT"}}}]}
+    assert V.check_call_substitution(draft, msgs, TOOLS) == []
+    msgs2 = [{"role": "user", "content": "Close all the windows please."}]
+    draft2 = {"tool_calls": [{"function": {"name": "open_close_window",
+                                           "arguments": {"window": "ALL", "percentage": 0}}}]}
+    assert V.check_call_substitution(draft2, msgs2, TOOLS) == []
+
+
+def test_call_substitution_silent_on_unrelated_subject():
+    """Delete verb present but the called tool touches a different subject."""
+    msgs = [{"role": "user", "content": "Remove the waypoint in Essen, and also make it warmer."}]
+    draft = {"tool_calls": [{"function": {"name": "set_fan_speed", "arguments": {"level": 2}}}]}
+    assert V.check_call_substitution(draft, msgs, TOOLS) == []
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

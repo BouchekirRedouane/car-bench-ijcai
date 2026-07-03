@@ -574,6 +574,55 @@ def check_promises(draft: dict, messages: list[dict], tools) -> list[str]:
     ]
 
 
+# Generic English verb clusters for operation-identity checking. A "destructive"
+# request (remove/delete/cancel) fulfilled by a non-destructive tool on the same
+# subject is the classic substitution shape (h_48: "remove Essen" executed via
+# navigation_replace_final_destination). Language-level, not benchmark-specific.
+_DELETE_VERBS = {"remove", "delete", "cancel", "clear", "erase", "drop", "discard"}
+
+
+def check_call_substitution(draft: dict, messages: list[dict], tools) -> list[str]:
+    """Substitution candidate for TOOL-CALL drafts (the promise-audit twin).
+
+    The reply-level promise-audit cannot see an agent that skips the promise and
+    goes straight to the substitute call. Fires when the user's request contains
+    a delete-type verb for some subject, and the draft calls a write tool on
+    that same subject whose name carries NO delete-type verb — the teacher must
+    then verify operation identity BEFORE the call executes. Candidate tier:
+    a correct call costs nothing (the teacher confirms and it proceeds)."""
+    calls = _calls(draft)
+    if not calls:
+        return []
+    user_text = ""
+    for m in reversed(messages):
+        if m.get("role") == "user" and m.get("content"):
+            user_text = str(m["content"]).lower()
+            break
+    req_tokens = tokens(user_text)
+    if not (req_tokens & _DELETE_VERBS):
+        return []
+    req_subjects = {_norm_tok(t) for t in req_tokens if len(t) > 3} - _CHANGE_VERBS - _DELETE_VERBS
+    findings: list[str] = []
+    for tc in calls:
+        name = (tc.get("function") or {}).get("name") or ""
+        if _is_read_tool(name):
+            continue
+        tool_tokens = tokens(name)
+        if tool_tokens & _DELETE_VERBS:
+            continue  # a delete-type tool for a delete-type request: consistent
+        subject = {_norm_tok(t) for t in tool_tokens if len(t) > 3} - _CHANGE_VERBS
+        if subject & req_subjects:
+            findings.append(
+                f"The user asked to REMOVE/DELETE something, but you are about to call '{name}', "
+                f"which performs a different operation on that subject. VERIFY before executing: if "
+                f"no available tool performs the user's EXACT delete operation, calling '{name}' to "
+                f"achieve the same outcome is a forbidden substitution — do not execute it; tell the "
+                f"user the specific operation is unavailable. Execute only if '{name}' IS the exact "
+                f"operation the user asked for. Discard this finding in that case."
+            )
+    return findings
+
+
 def gather_prefs_advisory(draft: dict, messages: list[dict], tools) -> list[str]:
     """Preferences gate. HARD again (one-shot per task): a disambiguation run
     proved the stored preferences literally contained the expected values
@@ -918,6 +967,7 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             # false positive is one extra acknowledgment sentence — cheap.
             _stage("unknown-ack", check_unknown_ack(draft, messages), hard)
             _stage("promise-audit", check_promises(draft, messages, tools), advisories)
+            _stage("call-substitution", check_call_substitution(draft, messages, tools), advisories)
         if cfg.enable_policy_enforce and rules:
             called = {(tc.get("function") or {}).get("name") for tc in _calls(draft)}
             called.discard(None)

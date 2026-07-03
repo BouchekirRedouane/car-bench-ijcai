@@ -10,7 +10,7 @@ cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
 
 [agent_under_test]
 endpoint = "http://127.0.0.1:8090"
-cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/anthropic/claude-sonnet-4.6"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/google/gemini-2.5-flash"
 
 [config]
 user_model = "openrouter/google/gemini-2.5-flash"
