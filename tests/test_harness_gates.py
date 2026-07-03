@@ -535,6 +535,24 @@ def test_call_substitution_silent_on_unrelated_subject():
 
 
 
+def test_output_integrity_catches_truncation_and_empty():
+    """h_38 regression: the literal shipped reply 'Hey there! I' (provider
+    truncation) and fully empty responses must be flagged; complete sentences
+    and tool-call turns must pass."""
+    assert len(V.check_output_integrity({"content": "Hey there! I"})) == 1
+    assert len(V.check_output_integrity({"content": ""})) == 1          # empty, no tools
+    assert V.check_output_integrity({"content": "All set! The fan is at level two."}) == []
+    assert V.check_output_integrity({"content": "Done — want me to close them? "}) == []
+    assert V.check_output_integrity(
+        {"tool_calls": [{"function": {"name": "get_weather", "arguments": {}}}]}) == []
+    # hard tier: survives skip_llm so a truncated revision is also caught
+    findings = V.run_verification(
+        {"content": "Hey there! I"}, _history(), TOOLS, RULES,
+        ProvenanceLedger(), _cfg(), skip_llm=True)
+    assert any("cut off" in f for f in findings), findings
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

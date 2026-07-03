@@ -538,7 +538,9 @@ def check_unknown_ack(draft: dict, messages: list[dict]) -> list[str]:
         "unknown/unavailable values, but your reply summarizes the outcome without mentioning it. "
         "Keep the reply otherwise the same, but explicitly tell the user which information could "
         "not be read and what was therefore not done or verified because of it (e.g. a check or "
-        "dependent action you had to skip). Do not invent or guess the missing values."
+        "dependent action you had to skip). Then offer the CONCRETE alternative you CAN perform "
+        "with the available tools (e.g. setting an explicit value the user names) — never a vague "
+        "'is there anything else I can help with'. Do not invent or guess the missing values."
     ]
 
 
@@ -572,6 +574,30 @@ def check_promises(draft: dict, messages: list[dict], tools) -> list[str]:
         "this specific operation is unavailable. Discard this finding only if every promised action is "
         "the user's exact operation performed by a listed tool."
     ]
+
+
+def check_output_integrity(draft: dict) -> list[str]:
+    """Degenerate-output guard (hard). A user-facing reply must be a complete
+    utterance: non-empty and not cut off mid-sentence (a provider truncation
+    once shipped the literal reply \"Hey there! I\" and the judge scored the
+    broken message as a hallucination). Pure string-structure check — no
+    content or domain assumptions, so it is hidden-benchmark safe."""
+    if _calls(draft):
+        return []  # tool-call turns carry no user-facing text contract
+    content = (draft.get("content") or "").strip()
+    if not content:
+        return [
+            "Your response is empty: it contains neither tool calls nor a message. Produce the "
+            "complete reply to the user (or the intended tool calls) now."
+        ]
+    # Strip common trailing wrappers before checking the terminal character.
+    tail = content.rstrip("\"'”’)]} \n\t")
+    if tail and tail[-1] not in ".!?…":
+        return [
+            "Your reply appears cut off mid-sentence (it does not end with sentence-final "
+            "punctuation). Rewrite it as the complete message: " + repr(content[:120])
+        ]
+    return []
 
 
 # Generic English verb clusters for operation-identity checking. A "destructive"
@@ -946,6 +972,8 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("confirm-gate", check_confirmation(draft, messages, tools), hard)
         if cfg.enable_completion_check:
             _stage("completion", check_completion(draft, messages), hard)
+        if getattr(cfg, "enable_output_guard", True):
+            _stage("output-integrity", check_output_integrity(draft), hard)
         if cfg.enable_claim_grounding and not skip_llm:
             _stage("claim-grounding", check_claims(
                 draft, messages, teacher_model=cfg.teacher_model or cfg.model, record=record), hard)

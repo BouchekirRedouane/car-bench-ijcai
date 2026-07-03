@@ -52,6 +52,7 @@ class HarnessConfig:
     enable_refusal_check: bool = True    # flag "claims can't-do but a matching tool exists"
     enable_confirmation_gate: bool = True  # block confirmation-marked tools until user affirms
     enable_completion_check: bool = True  # flag "claims done but performed no action"
+    enable_output_guard: bool = True     # reject empty / mid-sentence-truncated final replies
     enable_claim_grounding: bool = False  # folded into the CoVe critic (Q1); kept for ablation
     enable_loop_check: bool = True        # flag repeated identical tool calls (stuck)
     enable_verify: bool = True           # LLM teacher critic (semantic)
@@ -91,6 +92,7 @@ class HarnessConfig:
             enable_refusal_check=_flag("ENABLE_REFUSAL_CHECK", True),
             enable_confirmation_gate=_flag("ENABLE_CONFIRMATION_GATE", True),
             enable_completion_check=_flag("ENABLE_COMPLETION_CHECK", True),
+            enable_output_guard=_flag("ENABLE_OUTPUT_GUARD", True),
             enable_claim_grounding=_flag("ENABLE_CLAIM_GROUNDING", False),
             enable_loop_check=_flag("ENABLE_LOOP_CHECK", True),
             enable_verify=_flag("ENABLE_VERIFY", True),
@@ -117,6 +119,7 @@ class HarnessConfig:
             "refusal_check": self.enable_refusal_check,
             "confirmation_gate": self.enable_confirmation_gate,
             "completion_check": self.enable_completion_check,
+            "output_guard": self.enable_output_guard,
             "claim_grounding": self.enable_claim_grounding,
             "loop_check": self.enable_loop_check,
             "verify": self.enable_verify,
