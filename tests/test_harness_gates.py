@@ -553,6 +553,31 @@ def test_output_integrity_catches_truncation_and_empty():
 
 
 
+def test_cove_rounds_default_is_two():
+    """Bounded self-correction: a second verify->revise round runs when round 1
+    found defects (early-exits on a clean verify, so clean turns cost nothing)."""
+    assert HarnessConfig().cove_rounds == 2
+
+
+def test_teacher_parse_failure_is_retried_once():
+    """A teacher reply with unparseable JSON must trigger exactly one re-ask;
+    the second (valid) verdict is used."""
+    calls = {"n": 0}
+    def fake_call_llm(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"content": "sorry, no json here"}
+        return {"content": '{"ok": false, "findings": ["do X"]}'}
+    orig = V.call_llm
+    V.call_llm = fake_call_llm
+    try:
+        out = V.cove_critic({"content": "hi."}, _history(), TOOLS, [], teacher_model="m")
+    finally:
+        V.call_llm = orig
+    assert calls["n"] == 2 and out == ["do X"], (calls, out)
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

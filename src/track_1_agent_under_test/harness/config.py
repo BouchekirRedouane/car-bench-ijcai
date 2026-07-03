@@ -59,8 +59,9 @@ class HarnessConfig:
     enable_disambig: bool = True         # ask-vs-resolve guidance in critic
     enable_sanitize: bool = True         # TTS output cleanup
 
-    # CoVe revise rounds and (future) self-consistency vote width.
-    cove_rounds: int = 1
+    # CoVe revise rounds (verify->revise->re-verify; the loop exits early on a
+    # clean verify, so round 2 only costs anything when round 1 found defects).
+    cove_rounds: int = 2
     vote_n: int = 1
     # Cap on findings passed to a revision so a weak model is not overloaded.
     max_findings: int = 6
@@ -98,7 +99,7 @@ class HarnessConfig:
             enable_verify=_flag("ENABLE_VERIFY", True),
             enable_disambig=_flag("ENABLE_DISAMBIG", True),
             enable_sanitize=_flag("ENABLE_SANITIZE", True),
-            cove_rounds=_int("COVE_ROUNDS", 1),
+            cove_rounds=_int("COVE_ROUNDS", 2),
             vote_n=_int("VOTE_N", 1),
             max_findings=_int("MAX_FINDINGS", 6),
         )

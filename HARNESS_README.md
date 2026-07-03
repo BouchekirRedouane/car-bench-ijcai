@@ -154,7 +154,7 @@ ENABLE_CONFIRMATION_GATE / ENABLE_COMPLETION_CHECK / ENABLE_LOOP_CHECK
 ENABLE_VERIFY               # the LLM teacher (CoVe)
 ENABLE_DISAMBIG             # ask-guard + ambiguity question
 ENABLE_SANITIZE             # TTS output cleanup
-COVE_ROUNDS=1  MAX_FINDINGS=6  TEACHER_LLM=<model>
+COVE_ROUNDS=2  MAX_FINDINGS=6  TEACHER_LLM=<model>
 ```
 
 ### No API budget? Manual (human-as-LLM) mode

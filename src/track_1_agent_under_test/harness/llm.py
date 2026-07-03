@@ -27,6 +27,10 @@ def build_completion_kwargs(
     interleaved_thinking: bool,
 ) -> dict:
     kwargs: dict[str, Any] = {"model": model, "tools": tools if tools else None}
+    # Bounded transport resilience: retry transient provider failures (5xx,
+    # timeouts, connection errors) so a network blip cannot kill a turn.
+    # litellm only retries retryable exception classes, never bad requests.
+    kwargs["num_retries"] = 2
     if temperature is not None:
         kwargs["temperature"] = temperature
     if thinking:

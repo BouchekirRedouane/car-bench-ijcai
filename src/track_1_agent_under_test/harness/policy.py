@@ -106,18 +106,23 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
 
     rules: list[dict] = []
     try:
-        msg = call_llm(
-            [
-                {"role": "system", "content": POLICY_COMPILER_SYSTEM},
-                {"role": "user", "content": user_content},
-            ],
-            None,
-            model=model,
-            temperature=0.0,
-            json_mode=True,
-            record=record,
-        )
-        data = parse_json_object(msg.get("content"))
+        data: dict = {}
+        for attempt in (1, 2):  # one bounded re-ask on unparseable compiler JSON —
+            msg = call_llm(       # losing ALL rules for the whole task is too costly
+                [
+                    {"role": "system", "content": POLICY_COMPILER_SYSTEM},
+                    {"role": "user", "content": user_content},
+                ],
+                None,
+                model=model,
+                temperature=0.0,
+                json_mode=True,
+                record=record,
+            )
+            data = parse_json_object(msg.get("content"))
+            if data:
+                break
+            logger.warning("Policy compile returned unparseable JSON (attempt %d)", attempt)
         for r in data.get("rules", []) or []:
             if not isinstance(r, dict):
                 continue

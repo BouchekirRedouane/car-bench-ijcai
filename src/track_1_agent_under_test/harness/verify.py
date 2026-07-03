@@ -865,15 +865,21 @@ def cove_critic(
         det_findings=("\n".join(f"- {f}" for f in det_findings) or "(none)"),
     )
     try:
-        msg = call_llm(
-            [{"role": "system", "content": TEACHER_SYSTEM}, {"role": "user", "content": user}],
-            None,
-            model=teacher_model,
-            temperature=0.0,
-            json_mode=True,
-            record=record,
-        )
-        data = parse_json_object(msg.get("content"))
+        data: dict = {}
+        for attempt in (1, 2):  # one bounded re-ask if the verdict JSON is unparseable
+            msg = call_llm(
+                [{"role": "system", "content": TEACHER_SYSTEM}, {"role": "user", "content": user}],
+                None,
+                model=teacher_model,
+                temperature=0.0,
+                json_mode=True,
+                record=record,
+            )
+            data = parse_json_object(msg.get("content"))
+            if data:
+                break
+            logger.warning("CoVe critic returned unparseable JSON (attempt %d)%s",
+                           attempt, "; re-asking once" if attempt == 1 else "; skipping")
         for qa in (data.get("questions") or [])[:8]:
             logger.debug("CoVe  Q: %s | A: %s", str(qa.get("q"))[:90], str(qa.get("a"))[:140])
         if data.get("ok") is True:
