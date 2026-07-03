@@ -100,9 +100,18 @@ Algorithm GCoVe-Turn(messages, tools, state)                      # one assistan
 | `loop` | H | identical call retried ≥2 times |
 | `completion` | H | reply claims an action was done but no state-changing tool ever ran |
 | `unknown-ack` | H | a tool result contained unknown/unavailable values and the success summary hides it |
+| `output-integrity` | H | empty final response, or a reply cut off mid-sentence (provider truncation) — pure string-structure check |
 | `refusal` | C | reply says "can't" while an available write tool matches the request (scans the last 3 user turns) |
 | `promise-audit` | C | reply promises future actions — each must map to the user's *exact* operation with a listed tool; a substitute or a removed parameter is a hallucination even inside a question |
+| `call-substitution` | C | the user asked to REMOVE/DELETE something and the draft CALLS a non-delete write tool on that same subject — the teacher must verify operation identity before execution |
 | `policy advisories` | C | compiled-rule reminders matched to the proposed calls |
+
+**Bounded self-correction** (failure-triggered only — clean turns are unchanged, preserving the
+Pass^3 variance discipline): transient provider errors are retried (litellm `num_retries=2` on every
+harness call); an unparseable teacher/compiler JSON verdict is re-asked once; `COVE_ROUNDS=2` gives
+a second verify→revise cycle with the teacher in the loop when round 1 found defects; a revision
+that introduces a new hard violation gets one deterministic final fix; an admission of a gap must
+always offer the concrete doable alternative (directive 6 + the unknown-ack finding).
 
 **Scalability invariant** (the framework is evaluated on a *hidden* benchmark): no gate contains a
 task id, tool name, or answer. All behavior derives at runtime from the tool schemas
@@ -175,16 +184,18 @@ uv run car-bench-run scenarios/track_1_agent_under_test/local_hallucination.toml
 Regression tests replay the exact recorded failures that motivated each gate, plus the
 alien-domain scalability suite.
 
-## 5. Results on train slices (5 tasks/category, Pass^1)
+## 5. Results on train slices (5 tasks/category, Pass^1, gemini-2.5-flash unless noted)
 
-| Category | Baseline behavior | With GCoVe (same model) |
+| Category | Before the harness fixes | Best measured with GCoVe |
 |---|---|---|
 | Base | 2/5 (over-refusal, skipped confirmation, invalid enum) | **5/5** |
-| Hallucination (5 hardest) | 1/5 | **4/5** |
-| Disambiguation | 2/5 (asked/guessed instead of resolving) | **3/5** |
+| Hallucination (5 hardest tasks) | 1/5 | **4/5** (3/5 typical; h_48 substitution now passes consistently) |
+| Disambiguation | 2/5 (asked/guessed instead of resolving) | **3/5** flash · **4/5** with a Sonnet-4.6 agent |
 
-Remaining failures cluster on verifier-model judgment (candidate arbitration) and user-simulator
-variance — both improve with a stronger `TEACHER_LLM`, which is a one-line env change.
+Remaining failures cluster on (a) verifier-model judgment — the cheap teacher sometimes discards a
+correct candidate finding (one-line fix: a stronger `TEACHER_LLM`) — and (b) user-simulator
+judgment variance on borderline acknowledgment phrasings, which is exactly what the Pass^3 metric
+punishes and why per-trial consistency drives the whole design.
 
 ## 6. Repository layout (submission-relevant)
 
