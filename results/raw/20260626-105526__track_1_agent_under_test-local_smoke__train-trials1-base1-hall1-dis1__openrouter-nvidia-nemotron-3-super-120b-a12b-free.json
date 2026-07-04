@@ -1,0 +1,1003 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "started_at": "2026-06-26T08:55:02.922879+00:00",
+    "completed_at": "2026-06-26T08:55:26.642199+00:00",
+    "wall_time_seconds": 23.719,
+    "raw_wall_time_seconds": 23.719,
+    "quota_wait_seconds": 0.0,
+    "scenario_path": "scenarios/track_1_agent_under_test/local_smoke.toml",
+    "scenario_name": "track_1_agent_under_test/local_smoke",
+    "agent_name": "track_1_agent_under_test",
+    "agent_under_test": "http://127.0.0.1:8090/",
+    "evaluator": "http://127.0.0.1:8081",
+    "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+    "reasoning_effort": null,
+    "task_selection": "train-trials1-base1-hall1-dis1",
+    "agent_metadata": {
+      "cmd": "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/nvidia/nemotron-3-super-120b-a12b:free"
+    },
+    "config": {
+      "user_model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "user_provider": "openrouter",
+      "policy_evaluator_model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "policy_evaluator_provider": "openrouter",
+      "num_trials": 1,
+      "task_split": "train",
+      "tasks_base_num_tasks": 1,
+      "tasks_hallucination_num_tasks": 1,
+      "tasks_disambiguation_num_tasks": 1,
+      "max_steps": 50
+    },
+    "client_wall_time_seconds": 23.72,
+    "raw_client_wall_time_seconds": 23.72
+  },
+  "summary_text": "CAR-bench Results\nTasks: 3\nOverall Pass Rate: 0.0% (0.0/3)\nTime: 23.7s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Base: 0.0% (0.0/1)\n    Task base_0: \u2717 (0.00)\n\n  Hallucination: 0.0% (0.0/1)\n    Task hallucination_0: \u2717 (0.00)\n\n  Disambiguation: 0.0% (0.0/1)\n    Task disambiguation_0: \u2717 (0.00)",
+  "summary": {},
+  "final_result": {
+    "raw_time_used": 23.67870593070984,
+    "max_trials": 1.0,
+    "successful_llm_time_used": 0.0,
+    "max_score": 3.0,
+    "pass_at_k_scores_by_split": {
+      "disambiguation": {
+        "Pass@1": 0.0
+      },
+      "hallucination": {
+        "Pass@1": 0.0
+      },
+      "base": {
+        "Pass@1": 0.0
+      }
+    },
+    "time_used": 23.67870593070984,
+    "detailed_results_by_split": {
+      "disambiguation": [
+        {
+          "agent_output_tokens": 0.0,
+          "error": "cannot access local variable 'step' where it is not associated with a value",
+          "agent_prompt_tokens": 0.0,
+          "trial": 0.0,
+          "agent_total_tokens": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "reward_info": {},
+          "agent_thinking_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "trajectory": [],
+          "total_a2a_time_ms": 0.0,
+          "task": {},
+          "a2a_turn_times_ms": [],
+          "user_cost": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+          "total_agent_cost": 0.0,
+          "agent_completion_tokens": 0.0,
+          "reward": 0.0,
+          "task_id": "disambiguation_0",
+          "mean_a2a_turn_time_ms": 0.0
+        }
+      ],
+      "hallucination": [
+        {
+          "agent_output_tokens": 0.0,
+          "error": "cannot access local variable 'step' where it is not associated with a value",
+          "agent_prompt_tokens": 0.0,
+          "trial": 0.0,
+          "agent_total_tokens": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "reward_info": {},
+          "agent_thinking_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "trajectory": [],
+          "total_a2a_time_ms": 0.0,
+          "task": {},
+          "a2a_turn_times_ms": [],
+          "user_cost": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+          "total_agent_cost": 0.0,
+          "agent_completion_tokens": 0.0,
+          "reward": 0.0,
+          "task_id": "hallucination_0",
+          "mean_a2a_turn_time_ms": 0.0
+        }
+      ],
+      "base": [
+        {
+          "agent_output_tokens": 0.0,
+          "error": "cannot access local variable 'step' where it is not associated with a value",
+          "agent_prompt_tokens": 0.0,
+          "trial": 0.0,
+          "agent_total_tokens": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "reward_info": {},
+          "agent_thinking_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "trajectory": [],
+          "total_a2a_time_ms": 0.0,
+          "task": {},
+          "a2a_turn_times_ms": [],
+          "user_cost": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+          "total_agent_cost": 0.0,
+          "agent_completion_tokens": 0.0,
+          "reward": 0.0,
+          "task_id": "base_0",
+          "mean_a2a_turn_time_ms": 0.0
+        }
+      ]
+    },
+    "score": 0.0,
+    "pass_power_k_scores": {
+      "Pass^1": 0.0
+    },
+    "pass_at_k_scores": {
+      "Pass@1": 0.0
+    },
+    "task_rewards_by_split": {
+      "disambiguation": {
+        "disambiguation_0": 0.0
+      },
+      "hallucination": {
+        "hallucination_0": 0.0
+      },
+      "base": {
+        "base_0": 0.0
+      }
+    },
+    "quota_wait_time": 0.0,
+    "pass_power_k_scores_by_split": {
+      "disambiguation": {
+        "Pass^1": 0.0
+      },
+      "hallucination": {
+        "Pass^1": 0.0
+      },
+      "base": {
+        "Pass^1": 0.0
+      }
+    },
+    "pass_rate": 0.0
+  },
+  "results": [
+    {
+      "raw_time_used": 20.277276515960693,
+      "max_trials": 1.0,
+      "successful_llm_time_used": 0.0,
+      "max_score": 1.0,
+      "pass_at_k_scores_by_split": {
+        "base": {
+          "Pass@1": 0.0
+        }
+      },
+      "time_used": 20.277276515960693,
+      "detailed_results_by_split": {
+        "base": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "base_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ]
+      },
+      "score": 0.0,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "task_rewards_by_split": {
+        "base": {
+          "base_0": 0.0
+        }
+      },
+      "quota_wait_time": 0.0,
+      "pass_power_k_scores_by_split": {
+        "base": {
+          "Pass^1": 0.0
+        }
+      },
+      "pass_rate": 0.0
+    },
+    {
+      "raw_time_used": 21.96559977531433,
+      "max_trials": 1.0,
+      "successful_llm_time_used": 0.0,
+      "max_score": 2.0,
+      "pass_at_k_scores_by_split": {
+        "hallucination": {
+          "Pass@1": 0.0
+        },
+        "base": {
+          "Pass@1": 0.0
+        }
+      },
+      "time_used": 21.96559977531433,
+      "detailed_results_by_split": {
+        "hallucination": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "hallucination_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ],
+        "base": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "base_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ]
+      },
+      "score": 0.0,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "task_rewards_by_split": {
+        "hallucination": {
+          "hallucination_0": 0.0
+        },
+        "base": {
+          "base_0": 0.0
+        }
+      },
+      "quota_wait_time": 0.0,
+      "pass_power_k_scores_by_split": {
+        "hallucination": {
+          "Pass^1": 0.0
+        },
+        "base": {
+          "Pass^1": 0.0
+        }
+      },
+      "pass_rate": 0.0
+    },
+    {
+      "raw_time_used": 23.677937507629395,
+      "max_trials": 1.0,
+      "successful_llm_time_used": 0.0,
+      "max_score": 3.0,
+      "pass_at_k_scores_by_split": {
+        "disambiguation": {
+          "Pass@1": 0.0
+        },
+        "hallucination": {
+          "Pass@1": 0.0
+        },
+        "base": {
+          "Pass@1": 0.0
+        }
+      },
+      "time_used": 23.677937507629395,
+      "detailed_results_by_split": {
+        "disambiguation": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "disambiguation_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ],
+        "hallucination": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "hallucination_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ],
+        "base": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "base_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ]
+      },
+      "score": 0.0,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "task_rewards_by_split": {
+        "disambiguation": {
+          "disambiguation_0": 0.0
+        },
+        "hallucination": {
+          "hallucination_0": 0.0
+        },
+        "base": {
+          "base_0": 0.0
+        }
+      },
+      "quota_wait_time": 0.0,
+      "pass_power_k_scores_by_split": {
+        "disambiguation": {
+          "Pass^1": 0.0
+        },
+        "hallucination": {
+          "Pass^1": 0.0
+        },
+        "base": {
+          "Pass^1": 0.0
+        }
+      },
+      "pass_rate": 0.0
+    },
+    {
+      "raw_time_used": 23.67870593070984,
+      "max_trials": 1.0,
+      "successful_llm_time_used": 0.0,
+      "max_score": 3.0,
+      "pass_at_k_scores_by_split": {
+        "disambiguation": {
+          "Pass@1": 0.0
+        },
+        "hallucination": {
+          "Pass@1": 0.0
+        },
+        "base": {
+          "Pass@1": 0.0
+        }
+      },
+      "time_used": 23.67870593070984,
+      "detailed_results_by_split": {
+        "disambiguation": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "disambiguation_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ],
+        "hallucination": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "hallucination_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ],
+        "base": [
+          {
+            "agent_output_tokens": 0.0,
+            "error": "cannot access local variable 'step' where it is not associated with a value",
+            "agent_prompt_tokens": 0.0,
+            "trial": 0.0,
+            "agent_total_tokens": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "reward_info": {},
+            "agent_thinking_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "trajectory": [],
+            "total_a2a_time_ms": 0.0,
+            "task": {},
+            "a2a_turn_times_ms": [],
+            "user_cost": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+            "total_agent_cost": 0.0,
+            "agent_completion_tokens": 0.0,
+            "reward": 0.0,
+            "task_id": "base_0",
+            "mean_a2a_turn_time_ms": 0.0
+          }
+        ]
+      },
+      "score": 0.0,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "task_rewards_by_split": {
+        "disambiguation": {
+          "disambiguation_0": 0.0
+        },
+        "hallucination": {
+          "hallucination_0": 0.0
+        },
+        "base": {
+          "base_0": 0.0
+        }
+      },
+      "quota_wait_time": 0.0,
+      "pass_power_k_scores_by_split": {
+        "disambiguation": {
+          "Pass^1": 0.0
+        },
+        "hallucination": {
+          "Pass^1": 0.0
+        },
+        "base": {
+          "Pass^1": 0.0
+        }
+      },
+      "pass_rate": 0.0
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "intermediate_base",
+      "text_parts": [
+        "[Intermediate] CAR-bench Results\nTasks: 1\nOverall Pass Rate: 0.0% (0.0/1)\nTime: 20.3s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Base: 0.0% (0.0/1)\n    Task base_0: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "raw_time_used": 20.277276515960693,
+          "max_trials": 1.0,
+          "successful_llm_time_used": 0.0,
+          "max_score": 1.0,
+          "pass_at_k_scores_by_split": {
+            "base": {
+              "Pass@1": 0.0
+            }
+          },
+          "time_used": 20.277276515960693,
+          "detailed_results_by_split": {
+            "base": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "base_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ]
+          },
+          "score": 0.0,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "task_rewards_by_split": {
+            "base": {
+              "base_0": 0.0
+            }
+          },
+          "quota_wait_time": 0.0,
+          "pass_power_k_scores_by_split": {
+            "base": {
+              "Pass^1": 0.0
+            }
+          },
+          "pass_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "intermediate_hallucination",
+      "text_parts": [
+        "[Intermediate] CAR-bench Results\nTasks: 2\nOverall Pass Rate: 0.0% (0.0/2)\nTime: 22.0s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Base: 0.0% (0.0/1)\n    Task base_0: \u2717 (0.00)\n\n  Hallucination: 0.0% (0.0/1)\n    Task hallucination_0: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "raw_time_used": 21.96559977531433,
+          "max_trials": 1.0,
+          "successful_llm_time_used": 0.0,
+          "max_score": 2.0,
+          "pass_at_k_scores_by_split": {
+            "hallucination": {
+              "Pass@1": 0.0
+            },
+            "base": {
+              "Pass@1": 0.0
+            }
+          },
+          "time_used": 21.96559977531433,
+          "detailed_results_by_split": {
+            "hallucination": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "hallucination_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ],
+            "base": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "base_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ]
+          },
+          "score": 0.0,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "task_rewards_by_split": {
+            "hallucination": {
+              "hallucination_0": 0.0
+            },
+            "base": {
+              "base_0": 0.0
+            }
+          },
+          "quota_wait_time": 0.0,
+          "pass_power_k_scores_by_split": {
+            "hallucination": {
+              "Pass^1": 0.0
+            },
+            "base": {
+              "Pass^1": 0.0
+            }
+          },
+          "pass_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "intermediate_disambiguation",
+      "text_parts": [
+        "[Intermediate] CAR-bench Results\nTasks: 3\nOverall Pass Rate: 0.0% (0.0/3)\nTime: 23.7s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Base: 0.0% (0.0/1)\n    Task base_0: \u2717 (0.00)\n\n  Hallucination: 0.0% (0.0/1)\n    Task hallucination_0: \u2717 (0.00)\n\n  Disambiguation: 0.0% (0.0/1)\n    Task disambiguation_0: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "raw_time_used": 23.677937507629395,
+          "max_trials": 1.0,
+          "successful_llm_time_used": 0.0,
+          "max_score": 3.0,
+          "pass_at_k_scores_by_split": {
+            "disambiguation": {
+              "Pass@1": 0.0
+            },
+            "hallucination": {
+              "Pass@1": 0.0
+            },
+            "base": {
+              "Pass@1": 0.0
+            }
+          },
+          "time_used": 23.677937507629395,
+          "detailed_results_by_split": {
+            "disambiguation": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "disambiguation_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ],
+            "hallucination": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "hallucination_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ],
+            "base": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "base_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ]
+          },
+          "score": 0.0,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "task_rewards_by_split": {
+            "disambiguation": {
+              "disambiguation_0": 0.0
+            },
+            "hallucination": {
+              "hallucination_0": 0.0
+            },
+            "base": {
+              "base_0": 0.0
+            }
+          },
+          "quota_wait_time": 0.0,
+          "pass_power_k_scores_by_split": {
+            "disambiguation": {
+              "Pass^1": 0.0
+            },
+            "hallucination": {
+              "Pass^1": 0.0
+            },
+            "base": {
+              "Pass^1": 0.0
+            }
+          },
+          "pass_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "Result",
+      "text_parts": [
+        "CAR-bench Results\nTasks: 3\nOverall Pass Rate: 0.0% (0.0/3)\nTime: 23.7s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Base: 0.0% (0.0/1)\n    Task base_0: \u2717 (0.00)\n\n  Hallucination: 0.0% (0.0/1)\n    Task hallucination_0: \u2717 (0.00)\n\n  Disambiguation: 0.0% (0.0/1)\n    Task disambiguation_0: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "raw_time_used": 23.67870593070984,
+          "max_trials": 1.0,
+          "successful_llm_time_used": 0.0,
+          "max_score": 3.0,
+          "pass_at_k_scores_by_split": {
+            "disambiguation": {
+              "Pass@1": 0.0
+            },
+            "hallucination": {
+              "Pass@1": 0.0
+            },
+            "base": {
+              "Pass@1": 0.0
+            }
+          },
+          "time_used": 23.67870593070984,
+          "detailed_results_by_split": {
+            "disambiguation": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "disambiguation_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ],
+            "hallucination": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "hallucination_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ],
+            "base": [
+              {
+                "agent_output_tokens": 0.0,
+                "error": "cannot access local variable 'step' where it is not associated with a value",
+                "agent_prompt_tokens": 0.0,
+                "trial": 0.0,
+                "agent_total_tokens": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "reward_info": {},
+                "agent_thinking_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "trajectory": [],
+                "total_a2a_time_ms": 0.0,
+                "task": {},
+                "a2a_turn_times_ms": [],
+                "user_cost": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 120, in execute\n    print(\"\\n\\n [RED] --- Orchestrator Start here | Step: \", step, \" --- \")\n                                                             ^^^^\nUnboundLocalError: cannot access local variable 'step' where it is not associated with a value\n",
+                "total_agent_cost": 0.0,
+                "agent_completion_tokens": 0.0,
+                "reward": 0.0,
+                "task_id": "base_0",
+                "mean_a2a_turn_time_ms": 0.0
+              }
+            ]
+          },
+          "score": 0.0,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "task_rewards_by_split": {
+            "disambiguation": {
+              "disambiguation_0": 0.0
+            },
+            "hallucination": {
+              "hallucination_0": 0.0
+            },
+            "base": {
+              "base_0": 0.0
+            }
+          },
+          "quota_wait_time": 0.0,
+          "pass_power_k_scores_by_split": {
+            "disambiguation": {
+              "Pass^1": 0.0
+            },
+            "hallucination": {
+              "Pass^1": 0.0
+            },
+            "base": {
+              "Pass^1": 0.0
+            }
+          },
+          "pass_rate": 0.0
+        }
+      ]
+    }
+  ]
+}

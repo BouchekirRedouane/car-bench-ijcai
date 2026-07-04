@@ -1,0 +1,831 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "started_at": "2026-06-27T16:48:54.439337+00:00",
+    "completed_at": "2026-06-27T17:14:40.378495+00:00",
+    "wall_time_seconds": 1545.939,
+    "raw_wall_time_seconds": 1545.939,
+    "quota_wait_seconds": 0.0,
+    "scenario_path": "scenarios/track_1_agent_under_test/local_hallucination.toml",
+    "scenario_name": "track_1_agent_under_test/local_hallucination",
+    "agent_name": "track_1_agent_under_test",
+    "agent_under_test": "http://127.0.0.1:8090/",
+    "evaluator": "http://127.0.0.1:8081",
+    "model": "gemini/gemini-2.5-flash",
+    "reasoning_effort": null,
+    "task_selection": "train-trials1-hall5ids",
+    "agent_metadata": {
+      "cmd": "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm gemini/gemini-2.5-flash"
+    },
+    "config": {
+      "user_model": "gemini/gemini-2.5-flash",
+      "user_provider": "gemini",
+      "policy_evaluator_model": "gemini/gemini-2.5-flash",
+      "policy_evaluator_provider": "gemini",
+      "num_trials": 1,
+      "task_split": "train",
+      "tasks_hallucination_task_id_filter": [
+        "hallucination_16",
+        "hallucination_24",
+        "hallucination_38",
+        "hallucination_40",
+        "hallucination_48"
+      ],
+      "max_steps": 50
+    },
+    "client_wall_time_seconds": 1545.94,
+    "raw_client_wall_time_seconds": 1545.94
+  },
+  "summary_text": "CAR-bench Results\nTasks: 5\nOverall Pass Rate: 0.0% (0.0/5)\nTime: 1545.9s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Hallucination: 0.0% (0.0/5)\n    Task hallucination_16: \u2717 (0.00)\n    Task hallucination_24: \u2717 (0.00)\n    Task hallucination_38: \u2717 (0.00)\n    Task hallucination_40: \u2717 (0.00)\n    Task hallucination_48: \u2717 (0.00)",
+  "summary": {},
+  "final_result": {
+    "max_score": 5.0,
+    "pass_power_k_scores_by_split": {
+      "hallucination": {
+        "Pass^1": 0.0
+      }
+    },
+    "score": 0.0,
+    "pass_rate": 0.0,
+    "detailed_results_by_split": {
+      "hallucination": [
+        {
+          "error": "cannot access local variable 'user_output' where it is not associated with a value",
+          "agent_completion_tokens": 0.0,
+          "trial": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "a2a_turn_times_ms": [],
+          "reward": 0.0,
+          "trajectory": [],
+          "agent_prompt_tokens": 0.0,
+          "mean_a2a_turn_time_ms": 0.0,
+          "task_id": "hallucination_16",
+          "user_cost": 0.0,
+          "agent_output_tokens": 0.0,
+          "agent_total_tokens": 0.0,
+          "agent_thinking_tokens": 0.0,
+          "total_agent_cost": 0.0,
+          "reward_info": {},
+          "task": {},
+          "total_a2a_time_ms": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+        },
+        {
+          "error": "cannot access local variable 'user_output' where it is not associated with a value",
+          "agent_completion_tokens": 0.0,
+          "trial": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "a2a_turn_times_ms": [],
+          "reward": 0.0,
+          "trajectory": [],
+          "agent_prompt_tokens": 0.0,
+          "mean_a2a_turn_time_ms": 0.0,
+          "task_id": "hallucination_24",
+          "user_cost": 0.0,
+          "agent_output_tokens": 0.0,
+          "agent_total_tokens": 0.0,
+          "agent_thinking_tokens": 0.0,
+          "total_agent_cost": 0.0,
+          "reward_info": {},
+          "task": {},
+          "total_a2a_time_ms": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+        },
+        {
+          "error": "cannot access local variable 'user_output' where it is not associated with a value",
+          "agent_completion_tokens": 0.0,
+          "trial": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "a2a_turn_times_ms": [],
+          "reward": 0.0,
+          "trajectory": [],
+          "agent_prompt_tokens": 0.0,
+          "mean_a2a_turn_time_ms": 0.0,
+          "task_id": "hallucination_38",
+          "user_cost": 0.0,
+          "agent_output_tokens": 0.0,
+          "agent_total_tokens": 0.0,
+          "agent_thinking_tokens": 0.0,
+          "total_agent_cost": 0.0,
+          "reward_info": {},
+          "task": {},
+          "total_a2a_time_ms": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+        },
+        {
+          "error": "cannot access local variable 'user_output' where it is not associated with a value",
+          "agent_completion_tokens": 0.0,
+          "trial": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "a2a_turn_times_ms": [],
+          "reward": 0.0,
+          "trajectory": [],
+          "agent_prompt_tokens": 0.0,
+          "mean_a2a_turn_time_ms": 0.0,
+          "task_id": "hallucination_40",
+          "user_cost": 0.0,
+          "agent_output_tokens": 0.0,
+          "agent_total_tokens": 0.0,
+          "agent_thinking_tokens": 0.0,
+          "total_agent_cost": 0.0,
+          "reward_info": {},
+          "task": {},
+          "total_a2a_time_ms": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+        },
+        {
+          "error": "cannot access local variable 'user_output' where it is not associated with a value",
+          "agent_completion_tokens": 0.0,
+          "trial": 0.0,
+          "total_llm_latency_ms": 0.0,
+          "agent_input_tokens": 0.0,
+          "num_a2a_turns": 0.0,
+          "a2a_turn_times_ms": [],
+          "reward": 0.0,
+          "trajectory": [],
+          "agent_prompt_tokens": 0.0,
+          "mean_a2a_turn_time_ms": 0.0,
+          "task_id": "hallucination_48",
+          "user_cost": 0.0,
+          "agent_output_tokens": 0.0,
+          "agent_total_tokens": 0.0,
+          "agent_thinking_tokens": 0.0,
+          "total_agent_cost": 0.0,
+          "reward_info": {},
+          "task": {},
+          "total_a2a_time_ms": 0.0,
+          "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+        }
+      ]
+    },
+    "time_used": 1545.8948588371277,
+    "quota_wait_time": 0.0,
+    "successful_llm_time_used": 0.0,
+    "pass_at_k_scores_by_split": {
+      "hallucination": {
+        "Pass@1": 0.0
+      }
+    },
+    "pass_at_k_scores": {
+      "Pass@1": 0.0
+    },
+    "max_trials": 1.0,
+    "task_rewards_by_split": {
+      "hallucination": {
+        "hallucination_24": 0.0,
+        "hallucination_40": 0.0,
+        "hallucination_38": 0.0,
+        "hallucination_16": 0.0,
+        "hallucination_48": 0.0
+      }
+    },
+    "raw_time_used": 1545.8948588371277,
+    "pass_power_k_scores": {
+      "Pass^1": 0.0
+    }
+  },
+  "results": [
+    {
+      "max_score": 5.0,
+      "pass_power_k_scores_by_split": {
+        "hallucination": {
+          "Pass^1": 0.0
+        }
+      },
+      "score": 0.0,
+      "pass_rate": 0.0,
+      "detailed_results_by_split": {
+        "hallucination": [
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_16",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_24",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_38",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_40",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_48",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          }
+        ]
+      },
+      "time_used": 1545.893132686615,
+      "quota_wait_time": 0.0,
+      "successful_llm_time_used": 0.0,
+      "pass_at_k_scores_by_split": {
+        "hallucination": {
+          "Pass@1": 0.0
+        }
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "max_trials": 1.0,
+      "task_rewards_by_split": {
+        "hallucination": {
+          "hallucination_24": 0.0,
+          "hallucination_40": 0.0,
+          "hallucination_38": 0.0,
+          "hallucination_16": 0.0,
+          "hallucination_48": 0.0
+        }
+      },
+      "raw_time_used": 1545.893132686615,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      }
+    },
+    {
+      "max_score": 5.0,
+      "pass_power_k_scores_by_split": {
+        "hallucination": {
+          "Pass^1": 0.0
+        }
+      },
+      "score": 0.0,
+      "pass_rate": 0.0,
+      "detailed_results_by_split": {
+        "hallucination": [
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_16",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_24",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_38",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_40",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          },
+          {
+            "error": "cannot access local variable 'user_output' where it is not associated with a value",
+            "agent_completion_tokens": 0.0,
+            "trial": 0.0,
+            "total_llm_latency_ms": 0.0,
+            "agent_input_tokens": 0.0,
+            "num_a2a_turns": 0.0,
+            "a2a_turn_times_ms": [],
+            "reward": 0.0,
+            "trajectory": [],
+            "agent_prompt_tokens": 0.0,
+            "mean_a2a_turn_time_ms": 0.0,
+            "task_id": "hallucination_48",
+            "user_cost": 0.0,
+            "agent_output_tokens": 0.0,
+            "agent_total_tokens": 0.0,
+            "agent_thinking_tokens": 0.0,
+            "total_agent_cost": 0.0,
+            "reward_info": {},
+            "task": {},
+            "total_a2a_time_ms": 0.0,
+            "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+          }
+        ]
+      },
+      "time_used": 1545.8948588371277,
+      "quota_wait_time": 0.0,
+      "successful_llm_time_used": 0.0,
+      "pass_at_k_scores_by_split": {
+        "hallucination": {
+          "Pass@1": 0.0
+        }
+      },
+      "pass_at_k_scores": {
+        "Pass@1": 0.0
+      },
+      "max_trials": 1.0,
+      "task_rewards_by_split": {
+        "hallucination": {
+          "hallucination_24": 0.0,
+          "hallucination_40": 0.0,
+          "hallucination_38": 0.0,
+          "hallucination_16": 0.0,
+          "hallucination_48": 0.0
+        }
+      },
+      "raw_time_used": 1545.8948588371277,
+      "pass_power_k_scores": {
+        "Pass^1": 0.0
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "intermediate_hallucination",
+      "text_parts": [
+        "[Intermediate] CAR-bench Results\nTasks: 5\nOverall Pass Rate: 0.0% (0.0/5)\nTime: 1545.9s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Hallucination: 0.0% (0.0/5)\n    Task hallucination_16: \u2717 (0.00)\n    Task hallucination_24: \u2717 (0.00)\n    Task hallucination_38: \u2717 (0.00)\n    Task hallucination_40: \u2717 (0.00)\n    Task hallucination_48: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "max_score": 5.0,
+          "pass_power_k_scores_by_split": {
+            "hallucination": {
+              "Pass^1": 0.0
+            }
+          },
+          "score": 0.0,
+          "pass_rate": 0.0,
+          "detailed_results_by_split": {
+            "hallucination": [
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_16",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_24",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_38",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_40",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_48",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              }
+            ]
+          },
+          "time_used": 1545.893132686615,
+          "quota_wait_time": 0.0,
+          "successful_llm_time_used": 0.0,
+          "pass_at_k_scores_by_split": {
+            "hallucination": {
+              "Pass@1": 0.0
+            }
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "max_trials": 1.0,
+          "task_rewards_by_split": {
+            "hallucination": {
+              "hallucination_24": 0.0,
+              "hallucination_40": 0.0,
+              "hallucination_38": 0.0,
+              "hallucination_16": 0.0,
+              "hallucination_48": 0.0
+            }
+          },
+          "raw_time_used": 1545.893132686615,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "name": "Result",
+      "text_parts": [
+        "CAR-bench Results\nTasks: 5\nOverall Pass Rate: 0.0% (0.0/5)\nTime: 1545.9s\nSuccessful LLM Time: 0.0s\n\nPass Scores:\n  Pass^1: 0.0%  |  Pass@1: 0.0%\n\nTask Results by Split:\n  Hallucination: 0.0% (0.0/5)\n    Task hallucination_16: \u2717 (0.00)\n    Task hallucination_24: \u2717 (0.00)\n    Task hallucination_38: \u2717 (0.00)\n    Task hallucination_40: \u2717 (0.00)\n    Task hallucination_48: \u2717 (0.00)"
+      ],
+      "data_parts": [
+        {
+          "max_score": 5.0,
+          "pass_power_k_scores_by_split": {
+            "hallucination": {
+              "Pass^1": 0.0
+            }
+          },
+          "score": 0.0,
+          "pass_rate": 0.0,
+          "detailed_results_by_split": {
+            "hallucination": [
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_16",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_24",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_38",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_40",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 122, in execute\n    env_reset_res = env.reset(task_index=task_index)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 129, in reset\n    initial_observation = self.user.reset(\n                          ^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 255, in reset\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              },
+              {
+                "error": "cannot access local variable 'user_output' where it is not associated with a value",
+                "agent_completion_tokens": 0.0,
+                "trial": 0.0,
+                "total_llm_latency_ms": 0.0,
+                "agent_input_tokens": 0.0,
+                "num_a2a_turns": 0.0,
+                "a2a_turn_times_ms": [],
+                "reward": 0.0,
+                "trajectory": [],
+                "agent_prompt_tokens": 0.0,
+                "mean_a2a_turn_time_ms": 0.0,
+                "task_id": "hallucination_48",
+                "user_cost": 0.0,
+                "agent_output_tokens": 0.0,
+                "agent_total_tokens": 0.0,
+                "agent_thinking_tokens": 0.0,
+                "total_agent_cost": 0.0,
+                "reward_info": {},
+                "task": {},
+                "total_a2a_time_ms": 0.0,
+                "traceback": "Traceback (most recent call last):\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/run.py\", line 320, in _run\n    res = orchestrator.execute(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/orchestrator.py\", line 175, in execute\n    env_response = env.run_steps(actions, state.messages)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 306, in run_steps\n    return loop.run_until_complete(self.steps(actions, messages))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/.venv/lib/python3.11/site-packages/nest_asyncio.py\", line 98, in run_until_complete\n    return f.result()\n           ^^^^^^^^^^\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/futures.py\", line 203, in result\n    raise self._exception.with_traceback(self._exception_tb)\n  File \"/home/pp-bouchekir/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/lib/python3.11/asyncio/tasks.py\", line 277, in __step\n    result = coro.send(None)\n             ^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/base.py\", line 218, in steps\n    new_user_message = self.user.step(actions[0].kwargs[\"content\"])\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 260, in step\n    return self.generate_next_message(self.messages)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/pp-bouchekir/projects/car-bench-ijcai/third_party/car-bench/car_bench/envs/user/user.py\", line 106, in generate_next_message\n    user_output.conversation_control_keyword, user_output.user_message\n    ^^^^^^^^^^^\nUnboundLocalError: cannot access local variable 'user_output' where it is not associated with a value\n"
+              }
+            ]
+          },
+          "time_used": 1545.8948588371277,
+          "quota_wait_time": 0.0,
+          "successful_llm_time_used": 0.0,
+          "pass_at_k_scores_by_split": {
+            "hallucination": {
+              "Pass@1": 0.0
+            }
+          },
+          "pass_at_k_scores": {
+            "Pass@1": 0.0
+          },
+          "max_trials": 1.0,
+          "task_rewards_by_split": {
+            "hallucination": {
+              "hallucination_24": 0.0,
+              "hallucination_40": 0.0,
+              "hallucination_38": 0.0,
+              "hallucination_16": 0.0,
+              "hallucination_48": 0.0
+            }
+          },
+          "raw_time_used": 1545.8948588371277,
+          "pass_power_k_scores": {
+            "Pass^1": 0.0
+          }
+        }
+      ]
+    }
+  ]
+}
