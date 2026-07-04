@@ -690,6 +690,63 @@ def test_conditional_scope_candidate_on_all():
 
 
 
+def test_conditional_read_demanded_for_check_rules():
+    """base_10 regression: policy 013 'check if high beam headlights are ON'
+    must demand get_exterior_lights_status before set_head_lights_high_beams —
+    matched by subject tokens (light~headlights), no keyword list."""
+    tools = TOOLS + [
+        {"function": {"name": "get_exterior_lights_status",
+                      "parameters": {"type": "object", "properties": {}}}},
+        {"function": {"name": "set_head_lights_high_beams",
+                      "parameters": {"type": "object", "properties": {"on": {"type": "boolean"}}}}},
+    ]
+    rules = [{"id": "013", "type": "auto_action",
+              "trigger_tools": ["set_fog_lights", "set_head_lights_high_beams"],
+              "requirement": "When activating fog lights, automatically check if low beam headlights "
+                             "are ON and activate them if not, and check if high beam headlights are "
+                             "ON and if so deactivate them."}]
+    draft = {"tool_calls": [{"function": {"name": "set_head_lights_high_beams",
+                                          "arguments": {"on": False}}}]}
+    findings = V.check_gather(draft, _history(), tools, rules)
+    assert any("get_exterior_lights_status" in f for f in findings), findings
+    # already read -> silent
+    done = _history("get_exterior_lights_status")
+    assert not any("get_exterior_lights_status" in f
+                   for f in V.check_gather(draft, done, tools, rules))
+
+
+def test_conditional_read_does_not_revive_unrelated_demands():
+    """The generalized matching must not resurrect the sunroof/trunk over-demand:
+    the windows rule (conditional, 'more than 20%') matches only window reads."""
+    rules = [RULES[1]]  # 011_windows
+    draft = {"tool_calls": [{"function": {"name": "set_air_conditioning",
+                                          "arguments": {"on": True}}}]}
+    findings = V.check_gather(draft, _history(), TOOLS, rules)
+    assert any("get_vehicle_window_positions" in f for f in findings), findings
+    assert not any("sunroof" in f or "trunk" in f for f in findings), findings
+
+
+def test_outward_duplicate_candidate():
+    """base_70 regression: a second send_email in the same task -> candidate;
+    the first send and non-outward repeats stay silent."""
+    tools = TOOLS + [{"function": {"name": "send_email",
+                                   "parameters": {"type": "object", "properties": {}}}}]
+    draft = {"tool_calls": [{"function": {"name": "send_email",
+                                          "arguments": {"contact_id": "c1", "text": "updated ETA"}}}]}
+    fresh = [{"role": "user", "content": "Email Grace my ETA."}]
+    assert V.check_outward_duplicate(draft, fresh, tools) == []
+    hist = fresh + [{"role": "assistant", "tool_calls": [
+        {"function": {"name": "send_email", "arguments": "{}"}}]}]
+    findings = V.check_outward_duplicate(draft, hist, tools)
+    assert len(findings) == 1 and "irreversible" in findings[0], findings
+    # repeating a reversible write is NOT this gate's business
+    d2 = {"tool_calls": [{"function": {"name": "set_fan_speed", "arguments": {"level": 2}}}]}
+    h2 = fresh + [{"role": "assistant", "tool_calls": [
+        {"function": {"name": "set_fan_speed", "arguments": "{}"}}]}]
+    assert V.check_outward_duplicate(d2, h2, TOOLS) == []
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

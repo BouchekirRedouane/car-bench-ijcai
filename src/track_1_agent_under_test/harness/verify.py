@@ -220,9 +220,31 @@ def _read_tool_names(tools) -> set[str]:
     return {n for n in tool_index(tools) if _is_read_tool(n)}
 
 
+# Attribute/plumbing tokens that never identify a subsystem by themselves.
+_ATTR_TOKENS = {"status", "state", "position", "level", "setting", "settings",
+                "current", "info", "information", "vehicle"}
+
+# A rule whose requirement is CONDITIONAL on live state ("check if X is ON",
+# "close windows open more than 20%") can only be applied after reading that
+# state. Cue list is generic English, not benchmark vocabulary.
+_CONDITIONAL_CUES = (" if ", "check", "currently", "already", "when ",
+                     "is on", "is off", "are on", "are off",
+                     "more than", "less than", "greater than", "below", "above")
+
+
 def _required_reads(action_name: str, rules: Optional[list], read_tools: set[str], all_tools: set[str]) -> set[str]:
     """Reads that a compiled policy rule makes a precondition of `action_name`
-    (rule triggers are fuzzy-resolved to real tool names)."""
+    (rule triggers are fuzzy-resolved to real tool names). Two mechanisms:
+
+    1. concept keywords (_GATHER_KEYWORDS): weather/preferences/... mentioned in
+       the requirement -> the matching read tool;
+    2. conditional-subject matching (generalizes #1 to unseen vocabulary): when
+       a triggered rule is conditional on live state, demand every read tool
+       whose SUBJECT tokens (name tokens minus attribute words) match the
+       requirement — e.g. 'check if high beam headlights are ON' demands
+       get_exterior_lights_status via light~headlights, with no keyword list.
+       Attribute-only matches (position/status/level) never qualify, so a
+       window rule cannot drag in sunroof/trunk position reads."""
     required: set[str] = set()
     for rule in rules or []:
         if action_name not in resolved_triggers(rule, all_tools):
@@ -243,6 +265,20 @@ def _required_reads(action_name: str, rules: Optional[list], read_tools: set[str
                 # NOT pull in sunroof/trunk position reads.
                 subject = {_norm_tok(t) for t in tokens(rt) if len(t) > 3} - patt_norm
                 if not subject or (subject & req_tok):
+                    required.add(rt)
+        # Generalized conditional-subject matching (base_10: policy 013 said
+        # "check if high beam headlights are ON" and the agent blindly wrote
+        # without reading the light status).
+        if any(c in text for c in _CONDITIONAL_CUES):
+            for rt in read_tools:
+                subject = {_norm_tok(t) for t in tokens(rt) if len(t) > 3} - _ATTR_TOKENS
+                if not subject:
+                    continue
+                hit = any(
+                    s == q or (len(s) > 4 and s in q) or (len(q) > 4 and q in s)
+                    for s in subject for q in req_tok - _ATTR_TOKENS
+                )
+                if hit:
                     required.add(rt)
     return required
 
@@ -713,6 +749,34 @@ def check_output_integrity(draft: dict) -> list[str]:
     return []
 
 
+# Outward-communication verbs: these tools have IRREVERSIBLE external effects
+# (a second email/call cannot be un-sent). Generic English, not tool names.
+_OUTWARD_TOKENS = {"send", "email", "mail", "call", "phone", "message", "notify", "sms"}
+
+
+def check_outward_duplicate(draft: dict, messages: list[dict], tools) -> list[str]:
+    """Irreversible-duplicate candidate. A second call to the same outward-
+    communication tool within one task is usually a duplicate (full-run
+    base_70: emailed the ETA, then 'corrected' it with a second email — the
+    extra send permanently pollutes the scored state). The teacher verifies
+    whether the repeat is genuinely a distinct, user-requested communication."""
+    findings: list[str] = []
+    prior = _history_writes(messages)
+    for tc in _calls(draft):
+        name = (tc.get("function") or {}).get("name") or ""
+        if _is_read_tool(name) or not (tokens(name) & _OUTWARD_TOKENS):
+            continue
+        if name in prior:
+            findings.append(
+                f"'{name}' has ALREADY been executed in this task, and its effect is irreversible "
+                f"(a sent message cannot be unsent). VERIFY: if this second call communicates the "
+                f"same matter (even updated or corrected), it is a duplicate — do not send it; "
+                f"gather everything first and communicate ONCE. Only proceed if the user explicitly "
+                f"asked for a separate, additional communication. Discard this finding in that case."
+            )
+    return findings
+
+
 _THRESHOLD_RE = re.compile(r"(more|less|greater|lower|above|below|over|under)\s+than|\d+\s*%|\d+\s*percent")
 
 
@@ -744,9 +808,11 @@ def check_conditional_scope(draft: dict, tools, rules) -> list[str]:
             if _THRESHOLD_RE.search(req.lower()):
                 findings.append(
                     f"'{name}' is called with {', '.join(agg_args)}='ALL', but the triggering policy "
-                    f"({rule.get('id')}) is conditional: \"{req[:120]}\". VERIFY against the state you "
-                    f"gathered: if EVERY item meets the condition, 'ALL' is correct — otherwise apply "
-                    f"the action only to the qualifying items individually and leave the rest unchanged."
+                    f"({rule.get('id')}) is conditional: \"{req[:120]}\". VERIFY item by item: from the "
+                    f"gathered state, LIST every individual item with its current value and compare "
+                    f"each against the policy threshold. If EVERY item qualifies, 'ALL' is correct. "
+                    f"If only some qualify, replace this call with one call per qualifying item and "
+                    f"leave the non-qualifying items untouched. Do not skip any qualifying item."
                 )
                 break
     return findings
@@ -1163,6 +1229,7 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("promise-audit", check_promises(draft, messages, tools), advisories)
             _stage("call-substitution", check_call_substitution(draft, messages, tools), advisories)
             _stage("conditional-scope", check_conditional_scope(draft, tools, rules), advisories)
+            _stage("outward-duplicate", check_outward_duplicate(draft, messages, tools), advisories)
         if cfg.enable_policy_enforce and rules:
             called = {(tc.get("function") or {}).get("name") for tc in _calls(draft)}
             called.discard(None)
