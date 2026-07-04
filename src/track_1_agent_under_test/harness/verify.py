@@ -410,12 +410,13 @@ def check_confirmation(draft: dict, messages: list[dict], tools) -> list[str]:
     calls = _calls(draft)
     if not calls:
         return []
-    # An affirmation only counts when it ANSWERS a question: the user's latest
-    # message contains an affirmative cue AND the assistant's preceding
-    # user-facing message asked one. A first request that merely contains
-    # "please do ..." has confirmed nothing yet.
+    # An affirmation only counts when it ANSWERS a question ABOUT THIS TOOL:
+    # the user's latest message contains an affirmative cue, the assistant's
+    # preceding message asked a question, and that question mentioned the
+    # tool's subject. (Full-run leak: an unrelated question + an incidental
+    # "yes" validated set_head_lights_high_beams with no confirmation at all.)
     last_user = ""
-    asked_before = False
+    question = ""
     seen_user = False
     for m in reversed(messages):
         if not seen_user and m.get("role") == "user" and m.get("content"):
@@ -423,17 +424,21 @@ def check_confirmation(draft: dict, messages: list[dict], tools) -> list[str]:
             seen_user = True
             continue
         if seen_user and m.get("role") == "assistant" and m.get("content"):
-            asked_before = "?" in str(m["content"])
+            c = str(m["content"])
+            question = c.lower() if "?" in c else ""
             break
-    user_affirmed = asked_before and any(p in last_user for p in _AFFIRM_PATTERNS)
-    if user_affirmed:
-        return []
+    affirmed = bool(question) and any(p in last_user for p in _AFFIRM_PATTERNS)
+    q_tokens = {_norm_tok(t) for t in tokens(question) if len(t) > 3}
     descs = _tool_descriptions(tools)
     findings: list[str] = []
     for tc in calls:
         name = (tc.get("function") or {}).get("name") or ""
-        if _CONFIRM_MARKER_RE.match(descs.get(name, "")):
-            findings.append(
+        if not _CONFIRM_MARKER_RE.match(descs.get(name, "")):
+            continue
+        subject = {_norm_tok(t) for t in tokens(name) if len(t) > 3} - _CHANGE_VERBS
+        if affirmed and (not subject or (subject & q_tokens)):
+            continue  # the user said yes to a question about this very action
+        findings.append(
                 f"Tool '{name}' requires explicit user confirmation before it may be called (its "
                 f"description is marked confirmation-required). The user has not confirmed yet. Do NOT "
                 f"call it now — instead tell the user exactly what you intend to do (tool and "
@@ -576,6 +581,114 @@ def check_promises(draft: dict, messages: list[dict], tools) -> list[str]:
     ]
 
 
+_FRESH_CREATE = {"new", "create"}
+_FRESH_DELETE = {"delete", "clear", "reset", "cancel"}
+
+
+def _history_writes(messages) -> set:
+    return {
+        name
+        for m in messages
+        if m.get("role") == "assistant"
+        for tc in (m.get("tool_calls") or [])
+        if (name := (tc.get("function") or {}).get("name")) and not _is_read_tool(name)
+    }
+
+
+def check_rebuild(draft: dict, messages: list[dict], tools) -> list[str]:
+    """Rebuild-substitution gate (hard). The delete-everything-then-create-fresh
+    pair on a subsystem that HAS in-place edit tools is the classic policy
+    violation shape ('if X is active, edit it; do not recreate it'): 3 of the 7
+    full-run navigation failures were exactly delete_current_* + set_new_* where
+    navigation_add/replace/delete_* tools existed. Detected purely from tool-name
+    structure (fresh-create tokens, fresh-delete+current tokens, shared subject),
+    so it generalizes to any hidden subsystem with the same tool family."""
+    draft_writes = {
+        name
+        for tc in _calls(draft)
+        if (name := (tc.get("function") or {}).get("name")) and not _is_read_tool(name)
+    }
+    if not draft_writes:
+        return []
+    idx = tool_index(tools)
+    writes = {n for n in idx if not _is_read_tool(n)}
+    scope = draft_writes | (_history_writes(messages) & writes)
+    creates = {n for n in draft_writes if tokens(n) & _FRESH_CREATE}
+    deletes = {n for n in scope
+               if (tokens(n) & _FRESH_DELETE) and "current" in tokens(n)}
+    findings: list[str] = []
+    for c in sorted(creates):
+        subj = {_norm_tok(t) for t in tokens(c) if len(t) > 3} - _CHANGE_VERBS - _FRESH_CREATE
+        if not subj:
+            continue
+        paired = any(subj & {_norm_tok(t) for t in tokens(dl) if len(t) > 3} for dl in deletes)
+        siblings = sorted(
+            n for n in writes - {c} - deletes
+            if not (tokens(n) & _FRESH_CREATE)
+            and (subj & {_norm_tok(t) for t in tokens(n) if len(t) > 3})
+        )
+        if paired and siblings:
+            findings.append(
+                f"You are deleting the current state and recreating it from scratch with '{c}'. "
+                f"In-place edit tools exist for this: {', '.join(siblings[:5])}. If the user asked to "
+                f"MODIFY part of it (add, remove, or change a stop/element), you must use those edit "
+                f"tools on the existing state instead of rebuilding — rebuilding violates the policy "
+                f"and changes state the user wanted kept. Only keep your approach if the user "
+                f"explicitly asked to discard everything and start completely fresh."
+            )
+    return findings
+
+
+_PLAN_DONE_STATUSES = {"completed", "done", "finished", "skipped", "cancelled", "canceled"}
+
+
+def check_plan_completion(draft: dict, messages: list[dict]) -> list[str]:
+    """Plan-completion gate (hard). If the agent created a plan with a planner
+    tool and then produces a success-summary reply while plan steps were never
+    marked completed AND never plausibly executed, it is declaring victory
+    halfway (full-run base_16: planned 4 climate steps, executed 3, said done —
+    the AC + windows step silently vanished). Reads only the planner-tool call
+    arguments from this task's history: fully runtime-derived."""
+    if _calls(draft):
+        return []
+    content = (draft.get("content") or "").strip()
+    low = content.lower()
+    if not content or "?" in content:
+        return []
+    if not any(p in low for p in _DONE_PATTERNS):
+        return []
+    steps: list[str] = []
+    done_idx: set[int] = set()
+    for m in messages:
+        if m.get("role") != "assistant":
+            continue
+        for tc in (m.get("tool_calls") or []):
+            fn = tc.get("function") or {}
+            if not any(tk.startswith("plan") for tk in tokens(fn.get("name") or "")):
+                continue
+            args = _args(tc)
+            if str(args.get("command", "")).lower() == "create" and isinstance(args.get("steps"), list):
+                steps = [str((s or {}).get("step_description", "")) for s in args["steps"]]
+                done_idx = set()
+            for upd in (args.get("step_updates") or []):
+                if str((upd or {}).get("step_status", "")).lower() in _PLAN_DONE_STATUSES:
+                    try:
+                        done_idx.add(int(upd.get("step_index")))
+                    except (TypeError, ValueError):
+                        pass
+    if not steps:
+        return []
+    pending = [s for i, s in enumerate(steps) if i not in done_idx and s]
+    if not pending:
+        return []
+    return [
+        "Your reply declares the task complete, but your own plan has unfinished steps: "
+        + " | ".join(p[:90] for p in pending[:3])
+        + ". Execute the remaining steps now (or state explicitly why they are not needed). "
+          "Do not summarize success while planned actions are missing."
+    ]
+
+
 def check_output_integrity(draft: dict) -> list[str]:
     """Degenerate-output guard (hard). A user-facing reply must be a complete
     utterance: non-empty and not cut off mid-sentence (a provider truncation
@@ -598,6 +711,45 @@ def check_output_integrity(draft: dict) -> list[str]:
             "punctuation). Rewrite it as the complete message: " + repr(content[:120])
         ]
     return []
+
+
+_THRESHOLD_RE = re.compile(r"(more|less|greater|lower|above|below|over|under)\s+than|\d+\s*%|\d+\s*percent")
+
+
+def check_conditional_scope(draft: dict, tools, rules) -> list[str]:
+    """Conditional-scope candidate. A policy like 'close all windows open MORE
+    THAN 20%' applies to the qualifying items only — but a lazy draft passes the
+    aggregate 'ALL' value, silently changing items the policy says to leave
+    alone (full-run base_94). Fires when a write argument is the aggregate ALL
+    while a triggered rule carries a numeric threshold; the teacher verifies
+    against the gathered state whether every item actually qualifies."""
+    if not rules:
+        return []
+    all_tools = set(tool_index(tools).keys())
+    findings: list[str] = []
+    for tc in _calls(draft):
+        name = (tc.get("function") or {}).get("name") or ""
+        if _is_read_tool(name):
+            continue
+        agg_args = [k for k, v in _args(tc).items()
+                    if isinstance(v, str) and v.strip().upper() == "ALL"]
+        if not agg_args:
+            continue
+        for rule in rules:
+            if rule.get("type") not in ("auto_action", "precondition"):
+                continue
+            if name not in resolved_triggers(rule, all_tools):
+                continue
+            req = rule.get("requirement") or ""
+            if _THRESHOLD_RE.search(req.lower()):
+                findings.append(
+                    f"'{name}' is called with {', '.join(agg_args)}='ALL', but the triggering policy "
+                    f"({rule.get('id')}) is conditional: \"{req[:120]}\". VERIFY against the state you "
+                    f"gathered: if EVERY item meets the condition, 'ALL' is correct — otherwise apply "
+                    f"the action only to the qualifying items individually and leave the rest unchanged."
+                )
+                break
+    return findings
 
 
 # Generic English verb clusters for operation-identity checking. A "destructive"
@@ -772,9 +924,14 @@ def check_capability(draft: dict, tools, rules) -> list[str]:
     write_tools = {n for n in all_tools if not _is_read_tool(n)}
     read_tools = {n for n in all_tools if _is_read_tool(n)}
     # subsystem nouns the vehicle exposes = tokens that appear in any tool name
-    # (plural-normalized, so a rule's "windows" matches the tools' "window")
+    # (plural-normalized, so a rule's "windows" matches the tools' "window").
+    # Utility tools (planner/think/math) are NOT subsystems: their tokens once
+    # made the word "Tools" in a policy sentence fire "no tool can change the
+    # 'tool'" — a nonsense finding that knocked the agent off a correct draft.
     subsystem_tokens: set[str] = set()
     for n in all_tools:
+        if n in _READ_EXACT:
+            continue
         subsystem_tokens |= {_norm_tok(t) for t in tokens(n) if len(t) > 3}
     # tokens a WRITE tool can directly control (plural-normalized)
     write_tok: set[str] = set()
@@ -978,8 +1135,11 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("confirm-gate", check_confirmation(draft, messages, tools), hard)
         if cfg.enable_completion_check:
             _stage("completion", check_completion(draft, messages), hard)
+            _stage("plan-completion", check_plan_completion(draft, messages), hard)
         if getattr(cfg, "enable_output_guard", True):
             _stage("output-integrity", check_output_integrity(draft), hard)
+        if cfg.enable_capability:
+            _stage("rebuild", check_rebuild(draft, messages, tools), hard)
         if cfg.enable_claim_grounding and not skip_llm:
             _stage("claim-grounding", check_claims(
                 draft, messages, teacher_model=cfg.teacher_model or cfg.model, record=record), hard)
@@ -1002,6 +1162,7 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("unknown-ack", check_unknown_ack(draft, messages), hard)
             _stage("promise-audit", check_promises(draft, messages, tools), advisories)
             _stage("call-substitution", check_call_substitution(draft, messages, tools), advisories)
+            _stage("conditional-scope", check_conditional_scope(draft, tools, rules), advisories)
         if cfg.enable_policy_enforce and rules:
             called = {(tc.get("function") or {}).get("name") for tc in _calls(draft)}
             called.discard(None)

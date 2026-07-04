@@ -19,6 +19,6 @@ policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
 policy_evaluator_provider = "openrouter"
 num_trials = 1
 task_split = "train"
-tasks_base_num_tasks = 5
+tasks_base_num_tasks = -1
 
 max_steps = 50

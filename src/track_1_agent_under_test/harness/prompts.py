@@ -35,6 +35,11 @@ Follow these on top of the policy above. When in doubt, prefer compliance over t
    (bad weather, energy warnings, REQUIRES_CONFIRMATION tools, ...), ask once — and after the user
    explicitly confirms, PERFORM the action. Never refuse a confirmation-gated action as if it were
    forbidden: the policy is satisfied by the confirmation.
+9. GROUND CONTEXT REFERENCES. When the request refers to the user's current context — "my
+   destination", "my route", "my next meeting", "the current stop" — resolve it by READING the
+   corresponding state (navigation state, calendar, vehicle status) before anything else. Never guess
+   what the context is and never ask the user for information those reads provide. Prefer editing the
+   existing state in place over deleting and recreating it.
 """
 
 # Compiles the provided policy wiki into a typed, machine-checkable rule set.

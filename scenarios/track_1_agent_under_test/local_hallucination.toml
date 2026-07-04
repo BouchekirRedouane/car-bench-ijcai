@@ -17,6 +17,6 @@ policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
 policy_evaluator_provider = "openrouter"
 num_trials = 1
 task_split = "train"
-tasks_hallucination_task_id_filter = ["hallucination_16", "hallucination_24", "hallucination_38", "hallucination_40", "hallucination_48"]
+tasks_hallucination_num_tasks = -1
 
 max_steps = 50

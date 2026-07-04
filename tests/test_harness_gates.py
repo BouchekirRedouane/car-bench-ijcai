@@ -578,6 +578,118 @@ def test_teacher_parse_failure_is_retried_once():
 
 
 
+# --------------------------------------------------------------------------- #
+# Full-run (2026-07-04) regression gates: capability meta-word, rebuild pair,
+# plan completion, confirmation subject-link, conditional scope.
+# --------------------------------------------------------------------------- #
+NAV_TOOLS = TOOLS + [
+    {"function": {"name": n, "parameters": {"type": "object", "properties": {}}}}
+    for n in ("set_new_navigation", "delete_current_navigation", "navigation_delete_waypoint",
+              "navigation_delete_destination", "navigation_replace_final_destination",
+              "navigation_add_one_waypoint", "get_current_navigation_state", "planning_tool")
+]
+
+
+def test_capability_ignores_utility_tool_tokens():
+    """base_56 regression: rule text 'Tools to delete...' + planning_tool's
+    'tool' token produced \"no tool can change the 'tool'\" and knocked the agent
+    off a CORRECT navigation_delete_waypoint draft. Utility tools must not
+    contribute subsystem tokens."""
+    rule = [{"id": "017", "type": "precondition",
+             "trigger_tools": ["navigation_delete_waypoint"],
+             "requirement": "Tools to delete, replace, or add a waypoint or a destination can only "
+                            "be used when the navigation system is already active."}]
+    draft = {"tool_calls": [{"function": {"name": "navigation_delete_waypoint",
+                                          "arguments": {"waypoint_id_to_delete": "loc_x"}}}]}
+    assert V.check_capability(draft, NAV_TOOLS, rule) == []
+
+
+def test_rebuild_gate_fires_on_delete_plus_create():
+    """base_64/68/80 regression: delete_current_navigation + set_new_navigation
+    while in-place edit tools exist -> hard finding naming the edit tools."""
+    draft = {"tool_calls": [
+        {"function": {"name": "delete_current_navigation", "arguments": {}}},
+        {"function": {"name": "set_new_navigation", "arguments": {"route_ids": ["r1"]}}}]}
+    msgs = [{"role": "user", "content": "Skip the Nuremberg stop and go straight to Paris."}]
+    findings = V.check_rebuild(draft, msgs, NAV_TOOLS)
+    assert len(findings) == 1 and "navigation_delete_waypoint" in findings[0], findings
+    # pair split across turns: delete earlier, create now
+    hist = msgs + [{"role": "assistant", "tool_calls": [
+        {"function": {"name": "delete_current_navigation", "arguments": "{}"}}]}]
+    late = {"tool_calls": [{"function": {"name": "set_new_navigation",
+                                         "arguments": {"route_ids": ["r1"]}}}]}
+    assert len(V.check_rebuild(late, hist, NAV_TOOLS)) == 1
+
+
+def test_rebuild_gate_silent_on_legitimate_fresh_setup():
+    """base_96 shape: a lone set_new_navigation with no delete-current pair is a
+    legitimate fresh route -> silent."""
+    draft = {"tool_calls": [{"function": {"name": "set_new_navigation",
+                                          "arguments": {"route_ids": ["r1"]}}}]}
+    msgs = [{"role": "user", "content": "Navigate me to a charging station in Mannheim."}]
+    assert V.check_rebuild(draft, msgs, NAV_TOOLS) == []
+
+
+def test_plan_completion_fires_on_unfinished_plan():
+    """base_16 regression: plan created with 4 steps, 3 actions executed, no
+    steps marked, reply claims success -> hard finding listing pending steps."""
+    msgs = _history() + [{"role": "assistant", "tool_calls": [{"function": {
+        "name": "planning_tool",
+        "arguments": {"command": "create", "steps": [
+            {"step_description": "Turn on front window defrost."},
+            {"step_description": "Set fan speed to level 2."},
+            {"step_description": "Turn on AC and close open windows."}]}}}]}]
+    draft = {"content": "All done! Your defrost is on and the fan is set."}
+    findings = V.check_plan_completion(draft, msgs)
+    assert len(findings) == 1 and "close open windows" in findings[0], findings
+    # once steps are marked completed, silent
+    msgs2 = msgs + [{"role": "assistant", "tool_calls": [{"function": {
+        "name": "planning_tool",
+        "arguments": {"command": "mark_steps", "step_updates": [
+            {"step_index": 0, "step_status": "completed"},
+            {"step_index": 1, "step_status": "completed"},
+            {"step_index": 2, "step_status": "completed"}]}}}]}]
+    assert V.check_plan_completion(draft, msgs2) == []
+
+
+def test_confirmation_requires_subject_linked_answer():
+    """base_10/92 regression: an unrelated question + an incidental 'yes' must
+    NOT validate a confirmation-marked tool."""
+    tools = [{"function": {"name": "set_head_lights_high_beams",
+                           "description": "REQUIRES_CONFIRMATION: toggles high beams.",
+                           "parameters": {"type": "object", "properties": {}}}}]
+    draft = {"tool_calls": [{"function": {"name": "set_head_lights_high_beams",
+                                          "arguments": {}}}]}
+    msgs = [{"role": "user", "content": "Turn on the high beams."},
+            {"role": "assistant", "content": "By the way, would you also like some music?"},
+            {"role": "user", "content": "Yes, sure."}]
+    assert len(V.check_confirmation(draft, msgs, tools)) == 1
+    # a subject-linked question + yes IS a valid confirmation
+    msgs_ok = [{"role": "user", "content": "Turn on the high beams."},
+               {"role": "assistant", "content": "Shall I switch on the high beam headlights now?"},
+               {"role": "user", "content": "Yes."}]
+    assert V.check_confirmation(draft, msgs_ok, tools) == []
+
+
+def test_conditional_scope_candidate_on_all():
+    """base_94 regression: open_close_window(window='ALL') under the >20%%
+    conditional rule -> candidate asking the teacher to verify every item
+    qualifies."""
+    draft = {"tool_calls": [{"function": {"name": "open_close_window",
+                                          "arguments": {"window": "ALL", "percentage": 0}}}]}
+    rules = [{"id": "011_windows", "type": "auto_action",
+              "trigger_tools": ["open_close_window"],
+              "requirement": "When turning the air conditioning ON, automatically close all windows "
+                             "that are open more than 20% absolute position."}]
+    findings = V.check_conditional_scope(draft, TOOLS, rules)
+    assert len(findings) == 1 and "ALL" in findings[0], findings
+    # no threshold in the rule -> silent
+    rules2 = [{"id": "x", "type": "auto_action", "trigger_tools": ["open_close_window"],
+               "requirement": "When AC turns on, close the windows."}]
+    assert V.check_conditional_scope(draft, TOOLS, rules2) == []
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):
