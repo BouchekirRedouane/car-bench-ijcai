@@ -1,0 +1,26 @@
+# Autoresearch TUNE SUBSET — stratified ~25 tasks, 2 trials each.
+# Half known failures (signal), half known passes (regression protection).
+# The optimizer sees ONLY these tasks' transcripts; everything else is HOLDOUT.
+# Judge/user-sim MUST stay gemini-2.5-flash (matches the official evaluator) —
+# tuning phrasing against a different judge does not transfer.
+
+[evaluator]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/google/gemini-2.5-flash"
+
+[config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
+num_trials = 2
+task_split = "train"
+tasks_base_task_id_filter = ["base_2", "base_8", "base_10", "base_40", "base_52", "base_70", "base_82", "base_86", "base_94", "base_96"]
+tasks_hallucination_task_id_filter = ["hallucination_2", "hallucination_8", "hallucination_16", "hallucination_24", "hallucination_38", "hallucination_40", "hallucination_48", "hallucination_60"]
+tasks_disambiguation_task_id_filter = ["disambiguation_0", "disambiguation_2", "disambiguation_4", "disambiguation_6", "disambiguation_8"]
+
+max_steps = 50

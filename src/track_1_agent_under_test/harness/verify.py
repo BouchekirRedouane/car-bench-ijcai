@@ -24,6 +24,7 @@ from .prompts import (
     TEACHER_SYSTEM, TEACHER_USER_TEMPLATE,
     CLAIM_GROUNDING_SYSTEM, CLAIM_GROUNDING_TEMPLATE,
 )
+from .tunables import TUN
 
 # Verbs in a precondition requirement that imply a subsystem must be *changed*
 # (and therefore need a write tool to achieve). Generic, not tool-specific.
@@ -474,12 +475,7 @@ def check_confirmation(draft: dict, messages: list[dict], tools) -> list[str]:
         subject = {_norm_tok(t) for t in tokens(name) if len(t) > 3} - _CHANGE_VERBS
         if affirmed and (not subject or (subject & q_tokens)):
             continue  # the user said yes to a question about this very action
-        findings.append(
-                f"Tool '{name}' requires explicit user confirmation before it may be called (its "
-                f"description is marked confirmation-required). The user has not confirmed yet. Do NOT "
-                f"call it now — instead tell the user exactly what you intend to do (tool and "
-                f"parameters) and ask for an explicit yes first."
-            )
+        findings.append(TUN["finding.confirmation"].format(name=name))
     return findings
 
 
@@ -532,16 +528,7 @@ def check_refusal(draft: dict, messages: list[dict], tools) -> list[str]:
             candidates.append(name)
     if not candidates:
         return []
-    return [
-        "The reply tells the user the request cannot be done, but these available tools appear to "
-        f"support the operation: {', '.join(candidates[:4])}. VERIFY against the tool schemas and the "
-        "data: if the specific operation (tool, every needed parameter, and the required data) IS fully "
-        "available, the student must perform it now instead of refusing. IMPORTANT: a policy that "
-        "requires CONFIRMATION is not a prohibition — if the user has already explicitly confirmed, the "
-        "policy is satisfied and refusing is a defect; the student must perform the action. Only if a "
-        "required tool, parameter, or data field is genuinely missing is the refusal correct — then "
-        "discard this finding."
-    ]
+    return [TUN["finding.refusal"].format(candidates=", ".join(candidates[:4]))]
 
 
 _UNKNOWN_VALUES = ('"unknown"', ": null", "'unknown'", '"n/a"', '"not available"')
@@ -574,15 +561,7 @@ def check_unknown_ack(draft: dict, messages: list[dict]) -> list[str]:
             unknown_fields.append(str(m.get("name") or "a tool result"))
     if not unknown_fields:
         return []
-    return [
-        f"A tool result this task ({', '.join(sorted(set(unknown_fields))[:3])}) contained "
-        "unknown/unavailable values, but your reply summarizes the outcome without mentioning it. "
-        "Keep the reply otherwise the same, but explicitly tell the user which information could "
-        "not be read and what was therefore not done or verified because of it (e.g. a check or "
-        "dependent action you had to skip). Then offer the CONCRETE alternative you CAN perform "
-        "with the available tools (e.g. setting an explicit value the user names) — never a vague "
-        "'is there anything else I can help with'. Do not invent or guess the missing values."
-    ]
+    return [TUN["finding.unknown_ack"].format(fields=", ".join(sorted(set(unknown_fields))[:3]))]
 
 
 def check_promises(draft: dict, messages: list[dict], tools) -> list[str]:
@@ -604,17 +583,7 @@ def check_promises(draft: dict, messages: list[dict], tools) -> list[str]:
         return []
     if any(p in low for p in _ADMIT_PATTERNS):
         return []  # already acknowledging limits; refusal gate owns that side
-    return [
-        "The reply PROMISES future actions (\"I'll ...\"). VERIFY every promised operation against "
-        "AVAILABLE TOOL NAMES one by one. A promise is only valid if a listed tool performs the user's "
-        "EXACT operation with its exact parameters. It is a defect when (a) the promised action has no "
-        "exact tool, needs a removed parameter, or needs unavailable data, OR (b) the promise achieves "
-        "the user's goal with a DIFFERENT operation than the one the user asked for (e.g. the user asks "
-        "to DELETE something and the plan REPLACES or REBUILDS instead) — that is a forbidden "
-        "substitution even though the substitute tool exists. In both cases the student must state that "
-        "this specific operation is unavailable. Discard this finding only if every promised action is "
-        "the user's exact operation performed by a listed tool."
-    ]
+    return [TUN["finding.promise_audit"]]
 
 
 _FRESH_CREATE = {"new", "create"}
@@ -664,14 +633,8 @@ def check_rebuild(draft: dict, messages: list[dict], tools) -> list[str]:
             and (subj & {_norm_tok(t) for t in tokens(n) if len(t) > 3})
         )
         if paired and siblings:
-            findings.append(
-                f"You are deleting the current state and recreating it from scratch with '{c}'. "
-                f"In-place edit tools exist for this: {', '.join(siblings[:5])}. If the user asked to "
-                f"MODIFY part of it (add, remove, or change a stop/element), you must use those edit "
-                f"tools on the existing state instead of rebuilding — rebuilding violates the policy "
-                f"and changes state the user wanted kept. Only keep your approach if the user "
-                f"explicitly asked to discard everything and start completely fresh."
-            )
+            findings.append(TUN["finding.rebuild"].format(
+                create=c, siblings=", ".join(siblings[:5])))
     return findings
 
 
@@ -717,12 +680,8 @@ def check_plan_completion(draft: dict, messages: list[dict]) -> list[str]:
     pending = [s for i, s in enumerate(steps) if i not in done_idx and s]
     if not pending:
         return []
-    return [
-        "Your reply declares the task complete, but your own plan has unfinished steps: "
-        + " | ".join(p[:90] for p in pending[:3])
-        + ". Execute the remaining steps now (or state explicitly why they are not needed). "
-          "Do not summarize success while planned actions are missing."
-    ]
+    return [TUN["finding.plan_completion"].format(
+        pending=" | ".join(p[:90] for p in pending[:3]))]
 
 
 def check_output_integrity(draft: dict) -> list[str]:
@@ -767,13 +726,7 @@ def check_outward_duplicate(draft: dict, messages: list[dict], tools) -> list[st
         if _is_read_tool(name) or not (tokens(name) & _OUTWARD_TOKENS):
             continue
         if name in prior:
-            findings.append(
-                f"'{name}' has ALREADY been executed in this task, and its effect is irreversible "
-                f"(a sent message cannot be unsent). VERIFY: if this second call communicates the "
-                f"same matter (even updated or corrected), it is a duplicate — do not send it; "
-                f"gather everything first and communicate ONCE. Only proceed if the user explicitly "
-                f"asked for a separate, additional communication. Discard this finding in that case."
-            )
+            findings.append(TUN["finding.outward_duplicate"].format(name=name))
     return findings
 
 
@@ -806,14 +759,8 @@ def check_conditional_scope(draft: dict, tools, rules) -> list[str]:
                 continue
             req = rule.get("requirement") or ""
             if _THRESHOLD_RE.search(req.lower()):
-                findings.append(
-                    f"'{name}' is called with {', '.join(agg_args)}='ALL', but the triggering policy "
-                    f"({rule.get('id')}) is conditional: \"{req[:120]}\". VERIFY item by item: from the "
-                    f"gathered state, LIST every individual item with its current value and compare "
-                    f"each against the policy threshold. If EVERY item qualifies, 'ALL' is correct. "
-                    f"If only some qualify, replace this call with one call per qualifying item and "
-                    f"leave the non-qualifying items untouched. Do not skip any qualifying item."
-                )
+                findings.append(TUN["finding.conditional_scope"].format(
+                    name=name, args=", ".join(agg_args), rule_id=rule.get("id"), req=req[:120]))
                 break
     return findings
 
@@ -856,14 +803,7 @@ def check_call_substitution(draft: dict, messages: list[dict], tools) -> list[st
             continue  # a delete-type tool for a delete-type request: consistent
         subject = {_norm_tok(t) for t in tool_tokens if len(t) > 3} - _CHANGE_VERBS
         if subject & req_subjects:
-            findings.append(
-                f"The user asked to REMOVE/DELETE something, but you are about to call '{name}', "
-                f"which performs a different operation on that subject. VERIFY before executing: if "
-                f"no available tool performs the user's EXACT delete operation, calling '{name}' to "
-                f"achieve the same outcome is a forbidden substitution — do not execute it; tell the "
-                f"user the specific operation is unavailable. Execute only if '{name}' IS the exact "
-                f"operation the user asked for. Discard this finding in that case."
-            )
+            findings.append(TUN["finding.call_substitution"].format(name=name))
     return findings
 
 
@@ -890,14 +830,8 @@ def gather_prefs_advisory(draft: dict, messages: list[dict], tools) -> list[str]
     prefs_tools = {n for n in _read_tool_names(tools) if "preference" in n}
     if not prefs_tools or (prefs_tools & history_tools):
         return []
-    return [
-        "Before this first state change ("
-        + ", ".join(sorted(set(state_changes)))
-        + f"), retrieve the learned user preferences with {sorted(prefs_tools)[0]} for the relevant "
-        "category: any argument value the user did not state explicitly (a level, percentage, color, "
-        "zone, mode, ...) may be stored there and must come from the preferences, not from a guess. "
-        "After reading them, apply: policy > explicit request > stored preference > sensible default."
-    ]
+    return [TUN["finding.prefs"].format(
+        writes=", ".join(sorted(set(state_changes))), tool=sorted(prefs_tools)[0])]
 
 
 # Choice-questions ask the user to pick or specify a value ("which ...?",
@@ -957,12 +891,7 @@ def check_ask_guard(draft: dict, messages: list[dict], tools, rules=None) -> lis
     # prescribes (a plain alphabetical cap once dropped get_weather — the one
     # read that decided the task).
     ordered = sorted(policy_linked) + sorted(unread - policy_linked)
-    return [
-        "You are asking the user to choose, but you have not yet read the information that could "
-        f"resolve the choice yourself: call {', '.join(ordered[:6])} first. Then resolve in "
-        "this order: strict policy > the user's explicit words > stored preferences > current "
-        "state/context. Ask the user ONLY if two or more valid options genuinely remain after that."
-    ]
+    return [TUN["finding.ask_guard"].format(reads=", ".join(ordered[:6]))]
 
 
 def check_capability(draft: dict, tools, rules) -> list[str]:
