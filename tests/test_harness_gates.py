@@ -747,6 +747,52 @@ def test_outward_duplicate_candidate():
 
 
 
+def test_conditional_read_never_demands_calculators_or_planners():
+    """2026-07-06 regression (11 tasks lost): the units rule ('24-hour time
+    format') and the charging-station rule must NOT demand calculators,
+    searches, or the planner as 'gathers' — those are not state reads."""
+    tools = TOOLS + [
+        {"function": {"name": n, "parameters": {"type": "object", "properties": {}}}}
+        for n in ("calculate_charging_soc_by_time", "calculate_charging_time_by_soc",
+                  "search_poi_along_the_route", "planning_tool", "set_climate_temperature")
+    ]
+    rules = [
+        {"id": "002", "type": "constraint", "trigger_tools": ["set_climate_temperature"],
+         "requirement": "The unit of temperature must be degrees Celsius and the format of "
+                        "datetime must be in 24h time format, if presented to the user."},
+        {"id": "constraint_001", "type": "constraint", "trigger_tools": ["search_poi_along_the_route"],
+         "requirement": "When searching for a charging station along the route, the parameter "
+                        "at_kilometer is required if it is a charging search."},
+    ]
+    draft = {"tool_calls": [{"function": {"name": "set_climate_temperature",
+                                          "arguments": {}}}]}
+    findings = V.check_gather(draft, _history(), tools, rules)
+    bad = [f for f in findings if any(x in f for x in
+           ("calculate_", "search_poi", "planning_tool"))]
+    assert bad == [], bad
+
+
+def test_conditional_read_still_covers_base_10_after_tightening():
+    """The tightened matching must still link get_exterior_lights_status to
+    set_head_lights_high_beams via the shared 'light' subject."""
+    tools = TOOLS + [
+        {"function": {"name": "get_exterior_lights_status",
+                      "parameters": {"type": "object", "properties": {}}}},
+        {"function": {"name": "set_head_lights_high_beams",
+                      "parameters": {"type": "object", "properties": {"on": {"type": "boolean"}}}}},
+    ]
+    rules = [{"id": "013", "type": "auto_action",
+              "trigger_tools": ["set_fog_lights", "set_head_lights_high_beams"],
+              "requirement": "When activating fog lights, automatically check if low beam headlights "
+                             "are ON and activate them if not, and check if high beam headlights are "
+                             "ON and if so deactivate them."}]
+    draft = {"tool_calls": [{"function": {"name": "set_head_lights_high_beams",
+                                          "arguments": {"on": False}}}]}
+    findings = V.check_gather(draft, _history(), tools, rules)
+    assert any("get_exterior_lights_status" in f for f in findings), findings
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

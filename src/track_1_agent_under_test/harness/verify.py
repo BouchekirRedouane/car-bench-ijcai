@@ -270,16 +270,34 @@ def _required_reads(action_name: str, rules: Optional[list], read_tools: set[str
         # Generalized conditional-subject matching (base_10: policy 013 said
         # "check if high beam headlights are ON" and the agent blindly wrote
         # without reading the light status).
-        if any(c in text for c in _CONDITIONAL_CUES):
+        #
+        # TIGHTLY constrained after a measured regression (11 base tasks): the
+        # first version substring-matched requirement words like 'time'/'route'/
+        # 'charging' against calculator/search/planner tools and hard-demanded
+        # garbage reads on most turns. Now:
+        #   * state-conditional rule types only (not constraints/disclosures);
+        #   * candidate reads are plain get_* state reads — calculators,
+        #     searches and planners are never "gather" targets;
+        #   * the read's subject must match a token of the TRIGGERED WRITE
+        #     TOOL itself (the action being gated), not merely any requirement
+        #     word — 'light' links get_exterior_lights_status to
+        #     set_head_lights_high_beams; nothing links a charging calculator
+        #     to set_climate_temperature.
+        if rule.get("type") in ("auto_action", "precondition", "confirmation") and any(
+            c in text for c in _CONDITIONAL_CUES
+        ):
+            write_tok = {_norm_tok(t) for t in tokens(action_name) if len(t) > 3} - _ATTR_TOKENS
             for rt in read_tools:
-                subject = {_norm_tok(t) for t in tokens(rt) if len(t) > 3} - _ATTR_TOKENS
-                if not subject:
+                if not rt.startswith("get_"):
                     continue
+                subject = {_norm_tok(t) for t in tokens(rt) if len(t) > 3} - _ATTR_TOKENS
                 hit = any(
-                    s == q or (len(s) > 4 and s in q) or (len(q) > 4 and q in s)
-                    for s in subject for q in req_tok - _ATTR_TOKENS
+                    s == w or (len(s) > 4 and s in w) or (len(w) > 4 and w in s)
+                    for s in subject for w in write_tok
                 )
-                if hit:
+                if hit and (subject & req_tok or any(
+                    (len(s) > 4 and any(s in q or q in s for q in req_tok)) for s in subject
+                )):
                     required.add(rt)
     return required
 
