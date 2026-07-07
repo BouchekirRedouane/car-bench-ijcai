@@ -132,14 +132,24 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
             triggers = r.get("trigger_tools") or []
             if not isinstance(triggers, list):
                 triggers = []
-            rules.append(
-                {
-                    "id": str(r.get("id", "")).strip() or rtype,
-                    "type": rtype,
-                    "trigger_tools": [str(t).strip() for t in triggers if str(t).strip()],
-                    "requirement": str(r.get("requirement", "")).strip(),
-                }
-            )
+            compiled = {
+                "id": str(r.get("id", "")).strip() or rtype,
+                "type": rtype,
+                "trigger_tools": [str(t).strip() for t in triggers if str(t).strip()],
+                "requirement": str(r.get("requirement", "")).strip(),
+            }
+            # v5: preserve the executable form when structurally plausible; the
+            # obligation engine re-validates it against the live tools at use.
+            ex = r.get("exec")
+            if (
+                isinstance(ex, dict)
+                and isinstance(ex.get("read"), str)
+                and isinstance(ex.get("field_pattern"), str)
+                and ex.get("op") in (">", ">=", "<", "<=", "==", "!=")
+                and isinstance(ex.get("obligation"), dict)
+            ):
+                compiled["exec"] = ex
+            rules.append(compiled)
         logger.info("Compiled %d policy rules", len(rules))
         for r in rules:
             logger.info(

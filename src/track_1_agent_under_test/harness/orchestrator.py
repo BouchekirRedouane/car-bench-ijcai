@@ -17,13 +17,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .config import HarnessConfig
-from .llm import call_llm
+from .llm import call_llm, parse_json_object
 from .policy import compile_policy
 from .prompts import REVISE_USER_TEMPLATE
 from .provenance import ProvenanceLedger
 from .sanitize import sanitize
 from . import trace
 from .verify import describe_action, run_verification, _is_read_tool
+from .tunables import TUN
+import json as _json
 
 logger = logging.getLogger("harness.orchestrator")
 
@@ -58,6 +60,10 @@ class ContextState:
     # detour), the gather guard is relaxed so the turn can execute instead of
     # looping propose -> gather -> re-propose forever.
     blocked_writes: list = field(default_factory=list)
+    # v5 request ledger: the user's asks (extracted once per user message);
+    # the final reply must cover each one (done or acknowledged).
+    ledger: list = field(default_factory=list)
+    seen_user_msgs: int = 0
 
 
 class CoVeOrchestrator:
@@ -77,22 +83,76 @@ class CoVeOrchestrator:
             record=record,
         )
 
-    def _revise(self, messages, tools, draft, findings, record) -> dict:
+    def _revise(self, messages, tools, draft, findings, record, model=None) -> dict:
         feedback = REVISE_USER_TEMPLATE.format(
             findings="\n".join(f"- {f}" for f in findings),
             action=describe_action(draft),
         )
         working = list(messages) + [{"role": "user", "content": feedback}]
+        if model:
+            logger.info("escalation: revising with %s", model)
         return call_llm(
             working,
             tools,
-            model=self.cfg.model,
+            model=model or self.cfg.model,
             temperature=self.cfg.temperature,
             thinking=self.cfg.thinking,
             reasoning_effort=self.cfg.reasoning_effort,
             interleaved_thinking=self.cfg.interleaved_thinking,
             record=record,
         )
+
+    def _student_vote(self, messages, tools, record) -> tuple[dict, int]:
+        """S1 with self-consistency: when the draft changes state and vote_n > 1,
+        sample additional drafts and execute the MODAL action set. Read-only and
+        reply turns are never re-sampled (no benefit, pure cost)."""
+        draft = self._student(messages, tools, record)
+        n = max(1, int(self.cfg.vote_n or 1))
+        if n <= 1 or not _write_set(draft):
+            return draft, 1
+        def key(d):
+            calls = []
+            for tc in (d.get("tool_calls") or []):
+                fn = tc.get("function") or {}
+                a = fn.get("arguments")
+                if isinstance(a, (dict, list)):
+                    a = _json.dumps(a, sort_keys=True)
+                calls.append(f"{fn.get('name')}|{a}")
+            return "||".join(sorted(calls))
+        votes = {key(draft): [draft]}
+        for _ in range(n - 1):
+            try:
+                d = self._student(messages, tools, record)
+            except Exception:  # noqa: BLE001 — a failed sample never blocks the turn
+                continue
+            votes.setdefault(key(d), []).append(d)
+        best_key, best = max(votes.items(), key=lambda kv: len(kv[1]))
+        if len(best) > 1 and best_key != key(draft):
+            logger.info("vote: modal action set won %d/%d (replacing first draft)",
+                        len(best), sum(len(v) for v in votes.values()))
+        return best[0], sum(len(v) for v in votes.values())
+
+    def _update_ledger(self, messages, state: ContextState, record) -> None:
+        """Extract the user's asks from any NEW user message (v5 request ledger)."""
+        user_msgs = [m for m in messages if m.get("role") == "user" and m.get("content")]
+        if len(user_msgs) <= state.seen_user_msgs:
+            return
+        for m in user_msgs[state.seen_user_msgs:]:
+            try:
+                msg = call_llm(
+                    [{"role": "system", "content": TUN["ledger.system"]},
+                     {"role": "user", "content": str(m["content"])[:2000]}],
+                    None, model=self.cfg.teacher_model or self.cfg.model,
+                    temperature=0.0, json_mode=True, record=record,
+                )
+                asks = parse_json_object(msg.get("content")).get("asks") or []
+                state.ledger.extend(str(a).strip() for a in asks[:5] if str(a).strip())
+                state.ledger = state.ledger[-12:]
+            except Exception as e:  # noqa: BLE001 — fail-safe
+                logger.warning("ledger extraction failed (%s); skipping", e)
+        state.seen_user_msgs = len(user_msgs)
+        if state.ledger:
+            logger.info("ledger: %s", state.ledger)
 
     # -- main entry -------------------------------------------------------- #
     def run_turn(self, messages, tools, state: ContextState, record=None) -> dict:
@@ -129,9 +189,11 @@ class CoVeOrchestrator:
         state.turn += 1
         rounds: list[dict] = []  # for the on-disk trace
 
+        if cfg.enable_harness and cfg.enable_ledger:
+            self._update_ledger(messages, state, record)
+
         # S1 — student draft (this call may raise; the executor handles LLM errors).
-        draft = self._student(messages, tools, record)
-        passes = 1
+        draft, passes = self._student_vote(messages, tools, record)
         logger.info("S1 student draft: %s", describe_action(draft)[:300])
         if draft.get("reasoning_content"):
             logger.debug("S1 student reasoning: %s", str(draft.get("reasoning_content"))[:500])
@@ -158,6 +220,7 @@ class CoVeOrchestrator:
                 findings = run_verification(
                     draft, messages, tools, rules, state.provenance, cfg,
                     record=record, stage_sink=sink, relax_gather=relax,
+                    ledger=state.ledger,
                 )
                 rounds[-1]["stages"] = sink
                 rounds[-1]["findings_total"] = len(findings)
@@ -189,7 +252,8 @@ class CoVeOrchestrator:
                 )
                 if det:
                     logger.info("post-revise re-check: %d deterministic violation(s) -> final fix", len(det))
-                    fixed = self._revise(messages, tools, draft, det, record)
+                    fixed = self._revise(messages, tools, draft, det, record,
+                                         model=cfg.escalation_model)
                     if fixed:
                         draft = fixed
                         passes += 1

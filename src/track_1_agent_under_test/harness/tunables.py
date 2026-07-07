@@ -105,7 +105,21 @@ For each rule output:
                   rather than a specific tool.
   requirement   : one imperative sentence telling the assistant what to do to comply.
 
-Output ONLY a JSON object: {"rules": [ {"id","type","trigger_tools","requirement"}, ... ]}.
+For rules of type "auto_action" or "precondition" whose CONDITION tests a state value from a read
+tool result (a number or status compared against a threshold) AND whose remedy is a concrete tool
+call, ALSO emit an executable form "exec" (omit it whenever you are not certain):
+  "exec": {
+    "read":          "<the read tool whose result holds the tested state>",
+    "field_pattern": "<glob over the result field names, * captures the item, e.g. device_*_level>",
+    "op":            "<one of > >= < <= == !=>",
+    "value":         <the threshold from the rule text>,
+    "obligation":    { "tool": "<the tool that performs the remedy>",
+                       "args": { "<arg>": "<item>", "<other arg>": <constant from the rule> } }
+  }
+Use "<item>" exactly for the argument identifying the matched item. Every tool and argument you
+reference must exist in AVAILABLE TOOL NAMES. This form lets deterministic code apply the rule.
+
+Output ONLY a JSON object: {"rules": [ {"id","type","trigger_tools","requirement","exec"?}, ... ]}.
 No prose, no markdown fences.
 """,
     "teacher.system": """\
@@ -262,6 +276,35 @@ Your previously proposed action was:
         "Your reply declares the task complete, but your own plan has unfinished steps: "
         "{pending}. Execute the remaining steps now (or state explicitly why they are not needed). "
         "Do not summarize success while planned actions are missing."
+    ),
+    # ------------------------------------------------------------------ #
+    # v5 obligation engine + request ledger
+    # ------------------------------------------------------------------ #
+    "finding.obligation_read": (
+        "A policy rule that applies to your proposed action is conditional on state you have not "
+        "read yet. Call {reads} FIRST (read-only, safe), then apply the rule to what it returns."
+    ),
+    "finding.obligation_missing": (
+        "The policy REQUIRES these exact additional calls alongside your action (computed from the "
+        "current state, arguments included — use them exactly as written): {calls}. Evidence: "
+        "{reasons}. Add these calls now; do not re-derive or guess different arguments."
+    ),
+    "finding.obligation_scope": (
+        "Your '{tool}' call uses an aggregate 'ALL' argument, but the policy condition is met by "
+        "only SOME items. Replace it with exactly these per-item calls and leave every other item "
+        "untouched: {calls}."
+    ),
+    "finding.ledger": (
+        "Before finishing, VERIFY against the conversation that each of the user's requests was "
+        "either performed or explicitly acknowledged as not possible: {asks}. If any item is "
+        "neither done nor acknowledged, the reply is premature — handle that item first. Discard "
+        "this finding if every item is covered."
+    ),
+    "ledger.system": (
+        "Extract the user's REQUESTS from their message to an in-car assistant. Output ONLY JSON: "
+        "{\"asks\": [\"<short imperative item>\", ...]}. One item per distinct thing the user "
+        "wants done or answered. Do not invent items; output an empty list if the message contains "
+        "no request."
     ),
 }
 

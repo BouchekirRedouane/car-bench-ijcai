@@ -59,6 +59,11 @@ class HarnessConfig:
     enable_disambig: bool = True         # ask-vs-resolve guidance in critic
     enable_sanitize: bool = True         # TTS output cleanup
 
+    # --- v5: obligation-driven execution ---
+    enable_obligations: bool = True      # computed obligations from exec-compiled rules (hard)
+    enable_ledger: bool = True           # request ledger -> final-reply coverage candidate
+    escalation_model: str | None = None  # stronger model for persistent hard findings (ESCALATION_LLM)
+
     # CoVe revise rounds (verify->revise->re-verify; the loop exits early on a
     # clean verify, so round 2 only costs anything when round 1 found defects).
     cove_rounds: int = 2
@@ -99,6 +104,9 @@ class HarnessConfig:
             enable_verify=_flag("ENABLE_VERIFY", True),
             enable_disambig=_flag("ENABLE_DISAMBIG", True),
             enable_sanitize=_flag("ENABLE_SANITIZE", True),
+            enable_obligations=_flag("ENABLE_OBLIGATIONS", True),
+            enable_ledger=_flag("ENABLE_LEDGER", True),
+            escalation_model=(os.getenv("ESCALATION_LLM") or None),
             cove_rounds=_int("COVE_ROUNDS", 2),
             vote_n=_int("VOTE_N", 1),
             max_findings=_int("MAX_FINDINGS", 6),
@@ -126,6 +134,9 @@ class HarnessConfig:
             "verify": self.enable_verify,
             "disambig": self.enable_disambig,
             "sanitize": self.enable_sanitize,
+            "obligations": self.enable_obligations,
+            "ledger": self.enable_ledger,
+            "escalation_model": self.escalation_model,
             "cove_rounds": self.cove_rounds,
             "vote_n": self.vote_n,
         }

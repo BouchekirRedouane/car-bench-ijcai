@@ -25,6 +25,7 @@ from .prompts import (
     CLAIM_GROUNDING_SYSTEM, CLAIM_GROUNDING_TEMPLATE,
 )
 from .tunables import TUN
+from .obligations import check_obligations
 
 # Verbs in a precondition requirement that imply a subsystem must be *changed*
 # (and therefore need a write tool to achieve). Generic, not tool-specific.
@@ -1106,7 +1107,7 @@ def check_claims(draft: dict, messages: list[dict], *, teacher_model: str, recor
 
 
 def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stage_sink=None,
-                     skip_llm=False, relax_gather=False) -> list[str]:
+                     skip_llm=False, relax_gather=False, ledger=None) -> list[str]:
     """Run all enabled teacher checks; return the findings that should trigger a
     revision. Two tiers:
 
@@ -1142,6 +1143,9 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("grounding", check_grounding(draft, prov), hard)
         if cfg.enable_capability and rules:
             _stage("capability", check_capability(draft, tools, rules), hard)
+        if getattr(cfg, "enable_obligations", True) and rules:
+            # v5: computed obligations (exact calls with code-computed args)
+            _stage("obligations", check_obligations(draft, messages, tools, rules), hard)
         if cfg.enable_loop_check:
             _stage("loop-guard", check_loops(draft, messages), hard)
         if getattr(cfg, "enable_confirmation_gate", True):
@@ -1177,6 +1181,11 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("call-substitution", check_call_substitution(draft, messages, tools), advisories)
             _stage("conditional-scope", check_conditional_scope(draft, tools, rules), advisories)
             _stage("outward-duplicate", check_outward_duplicate(draft, messages, tools), advisories)
+        if getattr(cfg, "enable_ledger", True) and ledger and not _calls(draft) \
+                and (draft.get("content") or "").strip():
+            # v5 request ledger: the final reply must cover every user ask
+            _stage("ledger", [TUN["finding.ledger"].format(
+                asks="; ".join(str(a) for a in ledger[:10]))], advisories)
         if cfg.enable_policy_enforce and rules:
             called = {(tc.get("function") or {}).get("name") for tc in _calls(draft)}
             called.discard(None)
