@@ -153,6 +153,12 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
         ex = rule.get("exec")
         if not valid_exec(ex):
             continue
+        # normalize names: the exec compiler sees `name(params)` signatures and
+        # sometimes copies the parentheses into the names (observed live:
+        # 'get_vehicle_window_positions()') — strip anything from '(' on.
+        ex = dict(ex, read=ex["read"].split("(")[0].strip(),
+                  obligation=dict(ex["obligation"],
+                                  tool=ex["obligation"]["tool"].split("(")[0].strip()))
         if not (resolved_triggers(rule, all_tools) & triggered_by):
             continue
         ob_tool = ex["obligation"]["tool"]

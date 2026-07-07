@@ -191,6 +191,16 @@ def test_vote_key_canonicalization():
     assert (winner.get("tool_calls")[0]["function"]["name"]) == "a"  # modal set wins
 
 
+def test_parenthesized_names_from_live_compiler_are_normalized():
+    """Live flash output included 'get_vehicle_window_positions()' — names with
+    parentheses (copied from the signature format) must still evaluate."""
+    rules = [dict(WINDOW_RULE[0], exec=dict(WINDOW_RULE[0]["exec"],
+                                            read="get_vehicle_window_positions()"))]
+    findings = O.check_obligations(AC_DRAFT, _msgs(STATE), WINDOW_TOOLS, rules)
+    assert len(findings) == 1 and '"window": "DRIVER"' in findings[0], findings
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):
