@@ -141,7 +141,7 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
             rules.append(compiled)
         logger.info("Compiled %d policy rules", len(rules))
         for r in rules:
-            logger.info(
+            logger.debug(
                 "  rule %s/%s triggers=%s :: %s",
                 r["id"], r["type"], r["trigger_tools"] or "-", r["requirement"][:120],
             )

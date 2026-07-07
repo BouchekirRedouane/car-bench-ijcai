@@ -1192,8 +1192,12 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
     advisories: list[str] = []
 
     def _stage(name: str, items: list[str], into: list[str]) -> None:
-        logger.info("  [%s] %d finding(s)%s", name, len(items),
-                    (": " + " | ".join(items)) if items else "")
+        # INFO only when a stage actually fired — 20+ "0 finding(s)" lines per
+        # pass drowned the signal; empty stages go to DEBUG.
+        if items:
+            logger.info("  [%s] %d finding(s): %s", name, len(items), " | ".join(items))
+        else:
+            logger.debug("  [%s] 0 finding(s)", name)
         if stage_sink is not None:
             stage_sink[name] = items
         into.extend(items)
@@ -1295,7 +1299,8 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
     # Cap so a weak model is not overloaded by a long, partly-redundant list.
     cap = getattr(cfg, "max_findings", 6)
     capped = deduped[:cap] if cap and len(deduped) > cap else deduped
-    logger.info(
+    _log = logger.info if (deduped or advisories) else logger.debug
+    _log(
         "verification total: %d revision-finding(s)%s (%d hard, %d advisory candidates) for %s",
         len(deduped), (f" (capped to {len(capped)})" if len(capped) < len(deduped) else ""),
         len(hard), len(advisories), describe_action(draft)[:80],

@@ -105,15 +105,12 @@ class CARBenchAgentExecutor(AgentExecutor):
             user_input = context.get_user_input()
         except Exception:
             user_input = "No text payload"
-        print(
-            f"\n\n [RED - car_bench_agent.py]  --- Starting execution loop...\n"
-            f"--- [REQUEST CONTEXT] ---\n"
-            f"• Task ID:     {task_id}\n"
-            # f"• Context ID:  {context_id}\n"
-            # f"• Current Task: {current_task}\n"
-            # f"• User Input:   {user_input}\n"
-            f"-------------------------\n"
-        )
+        # print(
+        #     f"\n\n [RED - car_bench_agent.py]  --- Starting execution loop...\n"
+        #     f"--- [REQUEST CONTEXT] ---\n"
+        #     f"• Task ID:     {task_id}\n"
+        #     f"-------------------------\n"
+        # )
 
         inbound_message = context.message
         ctx_logger = logger.bind(role="agent_under_test", context=f"ctx:{context.context_id[:8]}")
