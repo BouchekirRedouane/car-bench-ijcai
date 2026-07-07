@@ -19,6 +19,7 @@ HARNESS_SYSTEM_SUFFIX = (
 # Compiles the provided policy wiki into a typed, machine-checkable rule set.
 # Shape-based (not policy-specific) so it generalizes to unseen policies.
 POLICY_COMPILER_SYSTEM = TUN["compiler.system"]
+POLICY_EXEC_SYSTEM = TUN["compiler.exec_system"]
 
 # The TEACHER — a grounded Chain-of-Verification pass. It POSES verification
 # questions, ANSWERS each from the provided evidence only, and lists defects.

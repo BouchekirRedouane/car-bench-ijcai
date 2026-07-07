@@ -138,17 +138,6 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
                 "trigger_tools": [str(t).strip() for t in triggers if str(t).strip()],
                 "requirement": str(r.get("requirement", "")).strip(),
             }
-            # v5: preserve the executable form when structurally plausible; the
-            # obligation engine re-validates it against the live tools at use.
-            ex = r.get("exec")
-            if (
-                isinstance(ex, dict)
-                and isinstance(ex.get("read"), str)
-                and isinstance(ex.get("field_pattern"), str)
-                and ex.get("op") in (">", ">=", "<", "<=", "==", "!=")
-                and isinstance(ex.get("obligation"), dict)
-            ):
-                compiled["exec"] = ex
             rules.append(compiled)
         logger.info("Compiled %d policy rules", len(rules))
         for r in rules:
@@ -160,8 +149,52 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
         logger.warning("Policy compile failed (%s); continuing with no rules", e)
         rules = []
 
+    # v5 second pass: translate state-conditional rules into the executable
+    # form (dedicated focused prompt — folding this into the main compile
+    # measurably degraded rule extraction). Fail-safe: no execs on any error.
+    try:
+        _attach_execs(rules, tool_names, model=model, record=record)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("exec pass failed (%s); rules stay advisory-only", e)
+
     _CACHE[key] = rules
     return rules
+
+
+def _attach_execs(rules: list[dict], tool_names, *, model: str, record=None) -> None:
+    from .prompts import POLICY_EXEC_SYSTEM  # late import (avoids cycle at module load)
+
+    cand = [r for r in rules
+            if r.get("type") in ("auto_action", "precondition") and r.get("requirement")]
+    if not cand or not tool_names:
+        return
+    lines = [f'{r["id"]} ({r["type"]}): {r["requirement"]}' for r in cand]
+    user = "RULES:\n" + "\n".join(lines) + "\n\nTOOL SIGNATURES:\n" + "\n".join(sorted(tool_names))
+    data: dict = {}
+    for attempt in (1, 2):
+        msg = call_llm(
+            [{"role": "system", "content": POLICY_EXEC_SYSTEM},
+             {"role": "user", "content": user}],
+            None, model=model, temperature=0.0, json_mode=True, record=record,
+        )
+        data = parse_json_object(msg.get("content"))
+        if data:
+            break
+    execs = data.get("execs") or {}
+    n = 0
+    for r in rules:
+        ex = execs.get(r["id"])
+        if (
+            isinstance(ex, dict)
+            and isinstance(ex.get("read"), str)
+            and isinstance(ex.get("field_pattern"), str)
+            and ex.get("op") in (">", ">=", "<", "<=", "==", "!=")
+            and isinstance(ex.get("obligation"), dict)
+        ):
+            r["exec"] = ex
+            n += 1
+            logger.info("  exec[%s]: %s", r["id"], str(ex)[:140])
+    logger.info("exec pass: %d/%d state-conditional rules executable", n, len(cand))
 
 
 _STOP_WORDS = set(

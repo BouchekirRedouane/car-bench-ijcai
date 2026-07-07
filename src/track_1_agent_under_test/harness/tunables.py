@@ -105,21 +105,30 @@ For each rule output:
                   rather than a specific tool.
   requirement   : one imperative sentence telling the assistant what to do to comply.
 
-For rules of type "auto_action" or "precondition" whose CONDITION tests a state value from a read
-tool result (a number or status compared against a threshold) AND whose remedy is a concrete tool
-call, ALSO emit an executable form "exec" (omit it whenever you are not certain):
-  "exec": {
-    "read":          "<the read tool whose result holds the tested state>",
-    "field_pattern": "<glob over the result field names, * captures the item, e.g. device_*_level>",
-    "op":            "<one of > >= < <= == !=>",
-    "value":         <the threshold from the rule text>,
-    "obligation":    { "tool": "<the tool that performs the remedy>",
-                       "args": { "<arg>": "<item>", "<other arg>": <constant from the rule> } }
-  }
-Use "<item>" exactly for the argument identifying the matched item. Every tool and argument you
-reference must exist in AVAILABLE TOOL NAMES. This form lets deterministic code apply the rule.
+Output ONLY a JSON object: {"rules": [ {"id","type","trigger_tools","requirement"}, ... ]}.
+No prose, no markdown fences.
+""",
+    "compiler.exec_system": """\
+You translate already-compiled assistant policy rules into an EXECUTABLE form that deterministic
+code can evaluate. You are given RULES (id, type, requirement) and TOOL SIGNATURES `name(params)`.
 
-Output ONLY a JSON object: {"rules": [ {"id","type","trigger_tools","requirement","exec"?}, ... ]}.
+For EACH rule whose condition tests a state value that a read tool returns (a number or status
+compared against a threshold or constant) AND whose remedy is one concrete tool call, output:
+  "<rule id>": {
+    "read":          "<read tool whose result contains the tested field(s)>",
+    "field_pattern": "<glob over result field names; * captures the item, e.g. device_*_level>",
+    "op":            "<one of: > >= < <= == !=>",
+    "value":         <threshold or constant from the rule text (number if numeric)>,
+    "obligation":    { "tool": "<tool performing the remedy>",
+                       "args": { "<arg>": "<item>", "<other arg>": <constant> } }
+  }
+Rules:
+- Use "<item>" EXACTLY for the argument naming the matched item; constants verbatim from the rule.
+- Numeric thresholds must be numbers, not strings. Percentages: use the number (20, not "20%").
+- Only reference tools and parameters that appear in TOOL SIGNATURES.
+- OMIT any rule you are not fully certain about — an omitted rule is safe, a wrong one is not.
+
+Output ONLY JSON: {"execs": { "<rule id>": { ... }, ... }} (empty object if none qualify).
 No prose, no markdown fences.
 """,
     "teacher.system": """\

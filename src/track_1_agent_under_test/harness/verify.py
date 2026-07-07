@@ -1181,11 +1181,14 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
             _stage("call-substitution", check_call_substitution(draft, messages, tools), advisories)
             _stage("conditional-scope", check_conditional_scope(draft, tools, rules), advisories)
             _stage("outward-duplicate", check_outward_duplicate(draft, messages, tools), advisories)
-        if getattr(cfg, "enable_ledger", True) and ledger and not _calls(draft) \
-                and (draft.get("content") or "").strip():
-            # v5 request ledger: the final reply must cover every user ask
-            _stage("ledger", [TUN["finding.ledger"].format(
-                asks="; ".join(str(a) for a in ledger[:10]))], advisories)
+        if getattr(cfg, "enable_ledger", True) and ledger and not _calls(draft):
+            # v5 request ledger: only SUMMARY-LIKE replies (done-claims) must
+            # cover every ask — firing on every reply turn (279x in one run)
+            # flooded the teacher with mid-conversation candidates.
+            _low = (draft.get("content") or "").strip().lower()
+            if _low and any(pat in _low for pat in _DONE_PATTERNS):
+                _stage("ledger", [TUN["finding.ledger"].format(
+                    asks="; ".join(str(a) for a in ledger[:10]))], advisories)
         if cfg.enable_policy_enforce and rules:
             called = {(tc.get("function") or {}).get("name") for tc in _calls(draft)}
             called.discard(None)
