@@ -793,6 +793,78 @@ def test_conditional_read_still_covers_base_10_after_tightening():
 
 
 
+# --------------------------------------------------------------------------- #
+# 2026-07-07 full-run audit fixes (all runtime-derived / generic-English).
+# --------------------------------------------------------------------------- #
+def test_confirmation_needs_intent_question_not_clarifying_question():
+    """base_70/78 leak: a clarifying question + an incidental 'yes' must NOT
+    validate a confirmation-marked tool; a first-person intent question must."""
+    tools = [{"function": {"name": "send_email",
+                           "description": "REQUIRES_CONFIRMATION: sends an email.",
+                           "parameters": {"type": "object", "properties": {}}}}]
+    draft = {"tool_calls": [{"function": {"name": "send_email", "arguments": {}}}]}
+    clarify = [{"role": "user", "content": "Email Nathan the contact info."},
+               {"role": "assistant", "content": "Which contacts should the email include?"},
+               {"role": "user", "content": "Yes, include the whole family."}]
+    assert len(V.check_confirmation(draft, clarify, tools)) == 1
+    intent = [{"role": "user", "content": "Email Nathan the contact info."},
+              {"role": "assistant", "content": "Do you want me to send the email to Nathan now?"},
+              {"role": "user", "content": "Yes please."}]
+    assert V.check_confirmation(draft, intent, tools) == []
+
+
+def test_completion_catches_communication_promises():
+    """base_74: 'Sending that email for you right away!' with zero writes ever
+    executed is a fabricated completion."""
+    msgs = [{"role": "system", "content": "p"},
+            {"role": "user", "content": "Email my contact the ETA please."}]
+    draft = {"content": "Got it! Sending that email for you right away!"}
+    assert len(V.check_completion(draft, msgs)) == 1
+
+
+def test_required_param_from_rule_text_enforced():
+    """base_88: the policy literally says 'always provide the at_kilometer
+    parameter' — enforce it deterministically, validated against the runtime
+    schema."""
+    tools = [{"function": {"name": "search_poi_along_the_route",
+                           "parameters": {"type": "object", "properties": {
+                               "category_poi": {"type": "string"},
+                               "route_id": {"type": "string"},
+                               "at_kilometer": {"type": "number"}}}}}]
+    rules = [{"id": "charging_km", "type": "constraint",
+              "trigger_tools": ["search_poi_along_the_route"],
+              "requirement": "When searching for a charging station along the route, always "
+                             "provide the at_kilometer parameter."}]
+    bad = {"tool_calls": [{"function": {"name": "search_poi_along_the_route",
+                                        "arguments": {"category_poi": "charging_stations",
+                                                      "route_id": "r1"}}}]}
+    findings = V.check_required_params(bad, tools, rules)
+    assert len(findings) == 1 and "at_kilometer" in findings[0], findings
+    ok = {"tool_calls": [{"function": {"name": "search_poi_along_the_route",
+                                       "arguments": {"category_poi": "charging_stations",
+                                                     "route_id": "r1", "at_kilometer": 50}}}]}
+    assert V.check_required_params(ok, tools, rules) == []
+    # a named parameter that does not exist in the runtime schema is ignored
+    rules2 = [dict(rules[0], requirement="Always provide the ghost_param parameter.")]
+    assert V.check_required_params(bad, tools, rules2) == []
+
+
+def test_exec_read_feeds_gather_guard():
+    """base_32/94: the compiled exec form names its own read tool — the gather
+    guard demands it with no keyword heuristics involved."""
+    rules = [{"id": "010", "type": "auto_action", "trigger_tools": ["set_fan_speed"],
+              "requirement": "Set the fan speed to level 2 if it is currently below level 2.",
+              "exec": {"read": "get_climate_settings", "field_pattern": "fan_speed",
+                       "op": "<", "value": 2,
+                       "obligation": {"tool": "set_fan_speed", "args": {"level": 2}}}}]
+    draft = {"tool_calls": [{"function": {"name": "set_fan_speed", "arguments": {"level": 2}}}]}
+    findings = V.check_gather(draft, _history(), TOOLS, rules)
+    assert any("get_climate_settings" in f for f in findings), findings
+    done = _history("get_climate_settings")
+    assert not any("get_climate_settings" in f for f in V.check_gather(draft, done, TOOLS, rules))
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

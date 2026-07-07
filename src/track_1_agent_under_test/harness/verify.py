@@ -251,6 +251,12 @@ def _required_reads(action_name: str, rules: Optional[list], read_tools: set[str
     for rule in rules or []:
         if action_name not in resolved_triggers(rule, all_tools):
             continue
+        # v5: the compiled EXECUTABLE form names its own read tool — the binding
+        # was made by the runtime compiler from the evaluator's policy text, so
+        # no keyword/token heuristic is involved at all.
+        ex = rule.get("exec")
+        if isinstance(ex, dict) and isinstance(ex.get("read"), str) and ex["read"] in read_tools:
+            required.add(ex["read"])
         text = (rule.get("requirement") or "").lower()
         req_tok = {_norm_tok(t) for t in tokens(text) if len(t) > 3}
         for kw, patterns in _GATHER_KEYWORDS.items():
@@ -349,7 +355,8 @@ _DONE_PATTERNS = (
     " set ", "changed", "updated", "adjusted", "activated", "deactivated", "completed",
     "turned on", "turned off", "switched",
 )
-_INTENT_PATTERNS = ("i'll ", "i will ", "going to ", "let me ")
+_INTENT_PATTERNS = ("i'll ", "i will ", "going to ", "let me ", "sending", "calling",
+                    "emailing", "right away", "on it")
 _ADMIT_PATTERNS = (
     "can't", "cannot", "can not", "unable", "isn't available", "is not available",
     "not available", "unavailable", "not possible", "couldn't", "could not", "no tool",
@@ -437,6 +444,16 @@ def check_loops(draft: dict, messages: list[dict], repeat_threshold: int = 2) ->
 # benchmark string — so it generalizes to hidden-set variants of the marker.
 _CONFIRM_MARKER_RE = re.compile(r"^\s*[A-Z_]*CONFIRM[A-Z_]*\b")
 
+# A question only counts as a CONFIRMATION request when it asks about the
+# assistant's own intended action (first-person intent structure) — a
+# clarifying question ("which email should I use?") plus an incidental "yes"
+# must not validate an irreversible call. Generic English structure.
+_INTENT_Q_RE = re.compile(
+    r"\b(shall i|should i|do you want me to|would you like me to|want me to|"
+    r"may i|can i (?:go ahead|proceed)|is it ok(?:ay)? (?:if i|to)|"
+    r"(?:confirm|proceed)\?)"
+)
+
 # Explicit-affirmation cues in the user's latest message. Generic conversational
 # English, not benchmark-specific.
 _AFFIRM_PATTERNS = (
@@ -480,8 +497,8 @@ def check_confirmation(draft: dict, messages: list[dict], tools) -> list[str]:
             seen_user = True
             continue
         if seen_user and m.get("role") == "assistant" and m.get("content"):
-            c = str(m["content"])
-            question = c.lower() if "?" in c else ""
+            c = str(m["content"]).lower()
+            question = c if ("?" in c and _INTENT_Q_RE.search(c)) else ""
             break
     affirmed = bool(question) and any(p in last_user for p in _AFFIRM_PATTERNS)
     q_tokens = {_norm_tok(t) for t in tokens(question) if len(t) > 3}
@@ -495,6 +512,51 @@ def check_confirmation(draft: dict, messages: list[dict], tools) -> list[str]:
         if affirmed and (not subject or (subject & q_tokens)):
             continue  # the user said yes to a question about this very action
         findings.append(TUN["finding.confirmation"].format(name=name))
+    return findings
+
+
+# "parameter X is required" / "always provide the X parameter" in a rule text.
+# The captured name is validated against the RUNTIME tool schema before any
+# enforcement, so this is driven entirely by the evaluator's own policy words.
+_REQ_PARAM_RE = re.compile(
+    r"(?:parameter|argument)\s+[`'\"]?([a-z0-9_]+)[`'\"]?"
+    r"|provide\s+the\s+[`'\"]?([a-z0-9_]+)[`'\"]?\s+(?:parameter|argument)"
+)
+_REQ_CUES = ("required", "must", "always", "mandatory")
+
+
+def check_required_params(draft: dict, tools, rules) -> list[str]:
+    """Hard gate: a rule that names a parameter as required for a triggered tool
+    is enforced deterministically — the name must exist in the tool's actual
+    schema (runtime validation) and be present in the call's arguments.
+    (Recorded failure: search executed without the parameter the policy
+    literally says to always provide -> scored execution error.)"""
+    calls = _calls(draft)
+    if not calls or not rules:
+        return []
+    idx = tool_index(tools)
+    all_tools = set(idx.keys())
+    findings: list[str] = []
+    for tc in calls:
+        name = (tc.get("function") or {}).get("name") or ""
+        if name not in idx:
+            continue
+        props = set(((idx[name] or {}).get("properties") or {}).keys())
+        args = _args(tc)
+        for rule in rules:
+            req = (rule.get("requirement") or "").lower()
+            if not any(c in req for c in _REQ_CUES):
+                continue
+            if name not in resolved_triggers(rule, all_tools):
+                continue
+            for m in _REQ_PARAM_RE.finditer(req):
+                param = m.group(1) or m.group(2)
+                if param and param in props and param not in args:
+                    findings.append(
+                        f"The policy ({rule.get('id')}) requires the parameter '{param}' for "
+                        f"'{name}', and your call omits it. Add '{param}' with a grounded value "
+                        f"(from the rule, the user's words, or a tool result) before executing."
+                    )
     return findings
 
 
@@ -1139,6 +1201,8 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
     try:
         if cfg.enable_halluc_gate:
             _stage("halluc/schema", check_schema(draft, tools), hard)
+        if cfg.enable_policy_enforce and rules:
+            _stage("required-params", check_required_params(draft, tools, rules), hard)
         if cfg.enable_provenance:
             _stage("grounding", check_grounding(draft, prov), hard)
         if cfg.enable_capability and rules:
