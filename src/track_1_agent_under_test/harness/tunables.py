@@ -125,7 +125,8 @@ compared against a threshold or constant) AND whose remedy is one concrete tool 
 Rules:
 - Use "<item>" EXACTLY for the argument naming the matched item; constants verbatim from the rule.
 - Numeric thresholds must be numbers, not strings. Percentages: use the number (20, not "20%").
-- Only reference tools and parameters that appear in TOOL SIGNATURES.
+- Only reference tools and parameters that appear in TOOL SIGNATURES. Write tool names BARE,
+  without parentheses or parameters (e.g. get_oven_state, never get_oven_state()).
 - OMIT any rule you are not fully certain about — an omitted rule is safe, a wrong one is not.
 
 Output ONLY JSON: {"execs": { "<rule id>": { ... }, ... }} (empty object if none qualify).
