@@ -199,7 +199,7 @@ def _attach_execs(rules: list[dict], tool_names, tools=None, *, model: str, reco
             isinstance(ex, dict)
             and isinstance(ex.get("read"), str)
             and isinstance(ex.get("field_pattern"), str)
-            and ex.get("op") in (">", ">=", "<", "<=", "==", "!=")
+            and ex.get("op") in (">", ">=", "<", "<=", "==", "!=", "contains", "not_contains")
             and isinstance(ex.get("obligation"), dict)
         ):
             r["exec"] = ex

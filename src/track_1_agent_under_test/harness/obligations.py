@@ -46,7 +46,11 @@ _OPS = {
     "<=": lambda a, b: a <= b,
     "==": lambda a, b: a == b,
     "!=": lambda a, b: a != b,
+    # string-membership conditions ("if the direction does not include X"):
+    "contains": lambda a, b: str(b).lower() in str(a).lower(),
+    "not_contains": lambda a, b: str(b).lower() not in str(a).lower(),
 }
+_STRING_OPS = {"contains", "not_contains"}
 
 _UNKNOWN = {"unknown", "n/a", "none", "null", ""}
 
@@ -187,6 +191,10 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
     missing_reads: set[str] = set()
     unknown_fields: list[str] = []
     total_matched: dict[str, int] = {}
+    # per obligation-tool: which arg names the item, and the aligned item
+    # values that qualified / matched / were unknown — used to flag EXTRA
+    # writes on items the policy says to leave alone.
+    items: dict[str, dict] = {}
     seen: set[str] = set()
 
     for rule in rules or []:
@@ -221,18 +229,44 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
             if item is None:
                 continue
             matched += 1
+            item_key0 = next((k for k, v in ex["obligation"]["args"].items()
+                              if isinstance(v, str) and "<item>" in v), None)
+            rec0 = items.setdefault(ob_tool, {"item_key": item_key0, "qualifying": set(),
+                                              "matched": set(), "unknown": set()})
+            if item_key0:
+                aligned0 = _bind_item(ex["obligation"]["args"][item_key0], item,
+                                      ((_tool_schema(tools, ob_tool).get("properties") or {}).get(item_key0) or {}))
+                if aligned0 is not None:
+                    rec0["matched"].add(str(aligned0))
+                    if isinstance(value, str) and value.strip().lower() in _UNKNOWN:
+                        rec0["unknown"].add(str(aligned0))
             if isinstance(value, str) and value.strip().lower() in _UNKNOWN:
                 unknown_fields.append(field)
                 continue
             a, b = value, ex["value"]
-            na, nb = _numeric(a), _numeric(b)
-            try:
-                hit = _OPS[ex["op"]](na, nb) if na is not None and nb is not None \
-                    else _OPS[ex["op"]](str(a).lower(), str(b).lower())
-            except Exception:
-                continue
+            if ex["op"] in _STRING_OPS:
+                try:
+                    hit = _OPS[ex["op"]](a, b)
+                except Exception:
+                    continue
+            else:
+                na, nb = _numeric(a), _numeric(b)
+                try:
+                    hit = _OPS[ex["op"]](na, nb) if na is not None and nb is not None \
+                        else _OPS[ex["op"]](str(a).lower(), str(b).lower())
+                except Exception:
+                    continue
             if not hit:
                 continue
+            item_key = next((k for k, v in ex["obligation"]["args"].items()
+                             if isinstance(v, str) and "<item>" in v), None)
+            if item_key:
+                rec = items.setdefault(ob_tool, {"item_key": item_key, "qualifying": set(),
+                                                 "matched": set(), "unknown": set()})
+                aligned = _bind_item(ex["obligation"]["args"][item_key], item,
+                                     (schema_props.get(item_key) or {}))
+                if aligned is not None:
+                    rec["qualifying"].add(str(aligned))
             args = {}
             ok = True
             for k, v in ex["obligation"]["args"].items():
@@ -257,7 +291,8 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
             })
         total_matched[rule.get("id", "?")] = matched
     return {"obligations": obligations, "missing_reads": missing_reads,
-            "unknown_fields": unknown_fields, "total_matched": total_matched}
+            "unknown_fields": unknown_fields, "total_matched": total_matched,
+            "items": items}
 
 
 def _render(ob: dict) -> str:
@@ -350,4 +385,53 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
             findings.append(TUN["finding.obligation_scope"].format(
                 tool=name,
                 calls="; ".join(_render(ob) for ob in per_tool[:6])))
+
+    # INVERSE scope: writes on items the policy says to LEAVE ALONE (live
+    # base_94 failure: closed the 10%-open window under a >20% rule). Skipped
+    # when the user explicitly mentioned the tool's subject — an explicit
+    # request overrides the rule-derived scope.
+    user_text = " ".join(str(m.get("content") or "")
+                         for m in messages if m.get("role") == "user").lower()
+    ob_tools = {ob["tool"] for ob in ev["obligations"]}
+    for name, args in draft_calls:
+        rec = ev["items"].get(name)
+        if rec is None:
+            continue
+        if any(w in user_text for w in _subject_tokens(name)):
+            continue  # user explicitly talked about this subject
+        if rec.get("item_key"):
+            val = args.get(rec["item_key"])
+            sval = str(val)
+            if val is None or (isinstance(val, str) and val.strip().upper() == "ALL"):
+                continue  # aggregate handled by the scope check above
+            if sval in rec["matched"] and sval not in rec["qualifying"]                     and sval not in rec["unknown"]:
+                findings.append(TUN["finding.obligation_extra"].format(
+                    tool=name, item=sval))
+        else:
+            # constant-args obligation (e.g. airflow): the rule matched state
+            # fields but the condition is NOT met -> the call is unnecessary
+            if rec["matched"] == set() and name not in ob_tools                     and ev["total_matched"].get(_rule_of(ev, name), 1) is not None:
+                pass  # nothing recorded; fall through
+            if name not in ob_tools and _tool_had_matches(ev, name):
+                findings.append(TUN["finding.obligation_unneeded"].format(tool=name))
     return findings
+
+
+def _rule_of(ev, tool_name):
+    for ob in ev["obligations"]:
+        if ob["tool"] == tool_name:
+            return ob["rule"]
+    return None
+
+
+def _tool_had_matches(ev, tool_name) -> bool:
+    """True when an exec rule targeting this tool evaluated at least one field
+    with a KNOWN value (so 'no obligation' really means 'condition not met')."""
+    rec = ev["items"].get(tool_name)
+    if rec is None:
+        return False
+    if rec.get("item_key"):
+        return bool(rec["matched"] - rec["unknown"])
+    # constant-args exec: rely on total_matched of any rule that produced the
+    # record — recorded matches imply the read succeeded with known values
+    return True

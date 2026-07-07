@@ -235,6 +235,82 @@ def test_executed_obligations_count_as_covered():
 
 
 
+def test_inverse_scope_flags_writes_on_non_qualifying_items():
+    """Live base_94 failure: closed the 10%-open window under a >20% rule.
+    A write on a matched-but-non-qualifying item is flagged — unless the user
+    explicitly mentioned the subject."""
+    draft = {"tool_calls": [
+        {"function": {"name": "set_air_conditioning", "arguments": {"on": True}}},
+        {"function": {"name": "open_close_window",
+                      "arguments": {"window": "DRIVER", "percentage": 0}}},      # qualifying (25)
+        {"function": {"name": "open_close_window",
+                      "arguments": {"window": "DRIVER_REAR", "percentage": 0}}}, # NON-qualifying (0)
+        {"function": {"name": "open_close_window",
+                      "arguments": {"window": "PASSENGER", "percentage": 0}}},   # qualifying (100)
+    ]}
+    findings = O.check_obligations(draft, _msgs(STATE), WINDOW_TOOLS, WINDOW_RULE)
+    extra = [f for f in findings if "NOT required" in f]
+    assert len(extra) == 1 and "DRIVER_REAR" in extra[0], findings
+    # explicit user mention of the subject disables the inverse check
+    msgs2 = _msgs(STATE)
+    msgs2[1] = {"role": "user", "content": "Turn on the AC and close all the windows please."}
+    findings2 = O.check_obligations(draft, msgs2, WINDOW_TOOLS, WINDOW_RULE)
+    assert not any("NOT required" in f for f in findings2), findings2
+
+
+AIRFLOW_TOOLS = WINDOW_TOOLS + [
+    {"function": {"name": "get_climate_settings",
+                  "parameters": {"type": "object", "properties": {}}}},
+    {"function": {"name": "set_fan_airflow_direction",
+                  "parameters": {"type": "object", "properties": {
+                      "direction": {"type": "string"}}}}},
+]
+AIRFLOW_RULE = [{
+    "id": "010_air", "type": "auto_action",
+    "trigger_tools": ["set_window_defrost", "set_fan_airflow_direction", "set_air_conditioning"],
+    "requirement": "Set airflow to WINDSHIELD if the current direction does not include WINDSHIELD.",
+    "exec": {"read": "get_climate_settings", "field_pattern": "fan_airflow_direction",
+             "op": "not_contains", "value": "WINDSHIELD",
+             "obligation": {"tool": "set_fan_airflow_direction",
+                            "args": {"direction": "WINDSHIELD"}}},
+}]
+
+
+def _climate_msgs(direction):
+    return [
+        {"role": "system", "content": "p"},
+        {"role": "user", "content": "Turn on the AC."},
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "get_climate_settings", "arguments": "{}"}}]},
+        {"role": "tool", "name": "get_climate_settings",
+         "content": '{"result": {"fan_airflow_direction": "%s"}}' % direction},
+    ]
+
+
+def test_not_contains_condition_and_unneeded_call():
+    """Live base_32 failure: airflow already included WINDSHIELD but the agent
+    changed it anyway. With not_contains the engine knows the condition is NOT
+    met and flags the unnecessary call; when the condition IS met, the
+    obligation is demanded."""
+    extra_draft = {"tool_calls": [
+        {"function": {"name": "set_air_conditioning", "arguments": {"on": True}}},
+        {"function": {"name": "set_fan_airflow_direction",
+                      "arguments": {"direction": "WINDSHIELD"}}}]}
+    f1 = O.check_obligations(extra_draft, _climate_msgs("WINDSHIELD_HEAD_FEET"),
+                             AIRFLOW_TOOLS, AIRFLOW_RULE)
+    assert any("NOT required" in x for x in f1), f1
+    plain_draft = {"tool_calls": [
+        {"function": {"name": "set_air_conditioning", "arguments": {"on": True}}}]}
+    f2 = O.check_obligations(plain_draft, _climate_msgs("FEET"),
+                             AIRFLOW_TOOLS, AIRFLOW_RULE)
+    assert any("set_fan_airflow_direction" in x and "REQUIRES" in x for x in f2), f2
+    # condition met and the agent (correctly) did not call it -> silent
+    f3 = O.check_obligations(plain_draft, _climate_msgs("WINDSHIELD_HEAD_FEET"),
+                             AIRFLOW_TOOLS, AIRFLOW_RULE)
+    assert not any("set_fan_airflow_direction" in x for x in f3), f3
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

@@ -121,7 +121,7 @@ compared against a threshold or constant) AND whose remedy is one concrete tool 
   "<rule id>": {
     "read":          "<read tool whose result contains the tested field(s)>",
     "field_pattern": "<glob over result field names; * captures the item, e.g. device_*_level>",
-    "op":            "<one of: > >= < <= == !=>",
+    "op":            "<one of: > >= < <= == != contains not_contains>",
     "value":         <threshold or constant from the rule text (number if numeric)>,
     "obligation":    { "tool": "<tool performing the remedy>",
                        "args": { "<arg>": "<item>", "<other arg>": <constant> } }
@@ -129,6 +129,8 @@ compared against a threshold or constant) AND whose remedy is one concrete tool 
 Rules:
 - Use "<item>" EXACTLY for the argument naming the matched item; constants verbatim from the rule.
 - Numeric thresholds must be numbers, not strings. Percentages: use the number (20, not "20%").
+- Use contains / not_contains for membership conditions ("if the direction does not include X"
+  -> op not_contains, value "X").
 - Only reference tools and parameters that appear in TOOL SIGNATURES. Write tool names BARE,
   without parentheses or parameters (e.g. get_oven_state, never get_oven_state()).
 - OMIT any rule you are not fully certain about — an omitted rule is safe, a wrong one is not.
@@ -309,6 +311,16 @@ Your previously proposed action was:
         "Your '{tool}' call uses an aggregate 'ALL' argument, but the policy condition is met by "
         "only SOME items. Replace it with exactly these per-item calls and leave every other item "
         "untouched: {calls}."
+    ),
+    "finding.obligation_extra": (
+        "Your '{tool}' call on '{item}' is NOT required: the current state shows this item does "
+        "not meet the policy condition, so the policy says to LEAVE IT UNTOUCHED. Remove this "
+        "call and keep only the required ones."
+    ),
+    "finding.obligation_unneeded": (
+        "Your '{tool}' call is NOT required: the policy condition it implements is not met (or is "
+        "already satisfied) according to the current state. Remove this call — do not change "
+        "state the policy does not ask you to change."
     ),
     "finding.ledger": (
         "Before finishing, VERIFY against the conversation that each of the user's requests was "
