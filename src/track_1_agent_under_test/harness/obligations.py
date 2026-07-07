@@ -73,8 +73,14 @@ def valid_exec(ex) -> bool:
 # --------------------------------------------------------------------------- #
 def latest_results(messages: list[dict]) -> dict[str, dict]:
     """Latest parsed result per tool name from this task's history."""
-    out: dict[str, dict] = {}
-    for m in messages:
+    return {k: v for k, (v, _i) in latest_results_indexed(messages).items()}
+
+
+def latest_results_indexed(messages: list[dict]) -> dict[str, tuple]:
+    """Latest parsed result per tool name, with its message index (for the
+    staleness check against later writes)."""
+    out: dict[str, tuple] = {}
+    for i, m in enumerate(messages):
         if m.get("role") != "tool" or not m.get("content"):
             continue
         name = m.get("name") or ""
@@ -85,8 +91,42 @@ def latest_results(messages: list[dict]) -> dict[str, dict]:
         if isinstance(data, dict):
             body = data.get("result") if isinstance(data.get("result"), dict) else data
             if isinstance(body, dict):
-                out[name] = body
+                out[name] = (body, i)
     return out
+
+
+_READ_PREFIXES = ("get_", "search_", "list_", "find_", "lookup_", "retrieve_",
+                  "calculate_", "compute_", "check_", "read_")
+_READ_EXACT = {"planning_tool", "think", "note_intermediate_result", "datetime", "math"}
+_ATTRS = {"status", "state", "position", "level", "setting", "settings", "current",
+          "info", "information", "vehicle"}
+
+
+def _is_read_name(name: str) -> bool:
+    return name in _READ_EXACT or name.startswith(_READ_PREFIXES)
+
+
+def _subject_tokens(name: str) -> set:
+    import re as _re
+    toks = {x for x in _re.split(r"[^a-z0-9]+", (name or "").lower()) if len(x) > 3}
+    return {x[:-1] if len(x) > 4 and x.endswith("s") else x for x in toks} - _ATTRS
+
+
+def _stale(read: str, read_idx: int, messages: list[dict]) -> bool:
+    """A read result is STALE when a write sharing its subject executed AFTER
+    it (observed live: closed ALL windows, then the engine computed
+    obligations from the pre-close positions and demanded redundant closes)."""
+    subj = _subject_tokens(read)
+    if not subj:
+        return False
+    for m in messages[read_idx + 1:]:
+        if m.get("role") != "assistant":
+            continue
+        for tc in (m.get("tool_calls") or []):
+            n = (tc.get("function") or {}).get("name") or ""
+            if n and not _is_read_name(n) and (_subject_tokens(n) & subj):
+                return True
+    return False
 
 
 def _wildcard_capture(pattern: str, field: str) -> Optional[str]:
@@ -141,7 +181,7 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
       unknown_fields: state fields whose value is unknown/unavailable
       total_matched : pattern-matched field count per rule id (for ALL-scope checks)
     """
-    results = latest_results(messages)
+    results_idx = latest_results_indexed(messages)
     all_tools = { (t.get("function") or {}).get("name") for t in tools or [] } - {None}
     obligations: list[dict] = []
     missing_reads: set[str] = set()
@@ -165,10 +205,14 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
         if ob_tool not in all_tools:
             continue  # obligation tool unavailable -> capability/teacher territory
         read = ex["read"]
-        body = results.get(read)
-        if body is None:
+        entry = results_idx.get(read)
+        if entry is None:
             if read in all_tools:
                 missing_reads.add(read)
+            continue
+        body, read_idx = entry
+        if _stale(read, read_idx, messages):
+            missing_reads.add(read)  # state changed since the read: demand a fresh one
             continue
         schema_props = (_tool_schema(tools, ob_tool).get("properties") or {})
         matched = 0
@@ -247,6 +291,22 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
         logger.warning("obligation engine failed (%s); skipping", e)
         return []
 
+    # obligations already EXECUTED earlier in the task are covered — otherwise
+    # the missing-finding pushes the student to re-send old writes (observed
+    # live: AC + temperature executed twice)
+    executed: set = set()
+    for m in messages:
+        if m.get("role") != "assistant":
+            continue
+        for tc0 in (m.get("tool_calls") or []):
+            fn0 = tc0.get("function") or {}
+            raw0 = fn0.get("arguments")
+            try:
+                a0 = raw0 if isinstance(raw0, dict) else json.loads(raw0 or "{}")
+            except Exception:
+                a0 = {}
+            executed.add((fn0.get("name"), json.dumps(a0, sort_keys=True)))
+
     findings: list[str] = []
     if ev["missing_reads"]:
         findings.append(TUN["finding.obligation_read"].format(
@@ -254,6 +314,8 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
 
     # Which computed obligations are not covered by the draft?
     def covered(ob) -> bool:
+        if (ob["tool"], json.dumps(ob["args"], sort_keys=True)) in executed:
+            return True
         for name, args in draft_calls:
             if name != ob["tool"]:
                 continue

@@ -201,6 +201,40 @@ def test_parenthesized_names_from_live_compiler_are_normalized():
 
 
 
+def test_stale_read_demands_refresh_not_redundant_obligations():
+    """Live base_32 failure: ALL windows were closed AFTER the positions read;
+    the engine then demanded redundant per-item closes from the stale values.
+    A write sharing the read's subject must invalidate the read."""
+    msgs = _msgs(STATE) + [
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "open_close_window",
+                          "arguments": {"window": "ALL", "percentage": 0}}}]},
+        {"role": "tool", "name": "open_close_window",
+         "content": '{"result": {"window": "ALL", "percentage": 0}}'},
+    ]
+    findings = O.check_obligations(AC_DRAFT, msgs, WINDOW_TOOLS, WINDOW_RULE)
+    assert len(findings) == 1 and "get_vehicle_window_positions" in findings[0], findings
+    assert "DRIVER" not in findings[0]  # no obligations computed from stale data
+
+
+def test_executed_obligations_count_as_covered():
+    """Live base_40 failure: the missing-finding made the student re-send
+    already-executed writes. Obligations satisfied earlier in the task are
+    covered."""
+    msgs = _msgs(STATE) + [
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "open_close_window",
+                          "arguments": {"window": "DRIVER", "percentage": 0}}},
+            {"function": {"name": "open_close_window",
+                          "arguments": {"window": "PASSENGER", "percentage": 0}}}]},
+    ]
+    findings = O.check_obligations(AC_DRAFT, msgs, WINDOW_TOOLS, WINDOW_RULE)
+    # both computed obligations were already executed -> nothing missing...
+    # but the closes themselves make the positions read stale -> re-read demand
+    assert all("DRIVER" not in f or "get_vehicle" in f for f in findings), findings
+
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

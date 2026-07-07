@@ -105,6 +105,10 @@ For each rule output:
                   rather than a specific tool.
   requirement   : one imperative sentence telling the assistant what to do to comply.
 
+If a single policy line prescribes MULTIPLE distinct automatic remedies (e.g. close windows AND
+set a fan level), output a SEPARATE rule for each remedy with suffixed ids (011_a, 011_b) —
+one rule = one condition = one remedy.
+
 Output ONLY a JSON object: {"rules": [ {"id","type","trigger_tools","requirement"}, ... ]}.
 No prose, no markdown fences.
 """,
@@ -297,7 +301,9 @@ Your previously proposed action was:
     "finding.obligation_missing": (
         "The policy REQUIRES these exact additional calls alongside your action (computed from the "
         "current state, arguments included — use them exactly as written): {calls}. Evidence: "
-        "{reasons}. Add these calls now; do not re-derive or guess different arguments."
+        "{reasons}. Add ONLY these calls to your current action; do not re-derive or guess "
+        "different arguments, and do NOT repeat any action you already executed earlier in "
+        "this task."
     ),
     "finding.obligation_scope": (
         "Your '{tool}' call uses an aggregate 'ALL' argument, but the policy condition is met by "
