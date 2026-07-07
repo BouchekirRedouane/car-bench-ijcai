@@ -181,7 +181,7 @@ class CoVeOrchestrator:
             ]
             state.rules = compile_policy(
                 sys_text, model=cfg.teacher_model or cfg.model,
-                tool_names=tool_names, record=record,
+                tool_names=tool_names, record=record, tools=tools,
             )
             trace.record_rules(state.rules or [])
         rules = state.rules or []

@@ -89,7 +89,7 @@ def _normalize(policy_text: str) -> str:
     return t.strip()
 
 
-def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None) -> list[dict]:
+def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None, tools=None) -> list[dict]:
     """Compile the policy into rules (cached). Never raises — returns [] on failure.
     `tool_names` (the available tools) are given to the compiler so it can ground
     trigger_tools to real names."""
@@ -153,7 +153,7 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
     # form (dedicated focused prompt — folding this into the main compile
     # measurably degraded rule extraction). Fail-safe: no execs on any error.
     try:
-        _attach_execs(rules, tool_names, model=model, record=record)
+        _attach_execs(rules, tool_names, tools, model=model, record=record)
     except Exception as e:  # noqa: BLE001
         logger.warning("exec pass failed (%s); rules stay advisory-only", e)
 
@@ -161,7 +161,7 @@ def compile_policy(policy_text: str, *, model: str, tool_names=None, record=None
     return rules
 
 
-def _attach_execs(rules: list[dict], tool_names, *, model: str, record=None) -> None:
+def _attach_execs(rules: list[dict], tool_names, tools=None, *, model: str, record=None) -> None:
     from .prompts import POLICY_EXEC_SYSTEM  # late import (avoids cycle at module load)
 
     cand = [r for r in rules
@@ -169,7 +169,18 @@ def _attach_execs(rules: list[dict], tool_names, *, model: str, record=None) -> 
     if not cand or not tool_names:
         return
     lines = [f'{r["id"]} ({r["type"]}): {r["requirement"]}' for r in cand]
-    user = "RULES:\n" + "\n".join(lines) + "\n\nTOOL SIGNATURES:\n" + "\n".join(sorted(tool_names))
+    # REAL signatures (name + parameter names): without the parameters the exec
+    # compiler must guess obligation arg names, and wrong guesses are silently
+    # dropped at evaluation -> an inert engine that looks like model failure.
+    sigs = []
+    for tl in tools or []:
+        fn = (tl or {}).get("function") or {}
+        if fn.get("name"):
+            params = ", ".join(sorted(((fn.get("parameters") or {}).get("properties") or {}).keys()))
+            sigs.append(f"{fn['name']}({params})")
+    if not sigs:
+        sigs = sorted(tool_names)
+    user = "RULES:\n" + "\n".join(lines) + "\n\nTOOL SIGNATURES:\n" + "\n".join(sorted(sigs))
     data: dict = {}
     for attempt in (1, 2):
         msg = call_llm(
