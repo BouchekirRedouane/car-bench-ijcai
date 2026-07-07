@@ -74,6 +74,15 @@ def call_llm(
 
     t0 = time.perf_counter()
     response = completion(messages=messages, **kwargs)
+    # Upstream mid-generation failures arrive DISGUISED as success: the provider
+    # sets finish_reason "error" and litellm maps it to "stop" without raising,
+    # delivering an empty or mid-sentence-truncated message (a recorded task
+    # loss). num_retries cannot help (no exception) — detect and retry once.
+    if _degenerate(response):
+        import logging
+        logging.getLogger("harness.llm").warning(
+            "degenerate completion (upstream finish_reason=error / empty message); retrying once")
+        response = completion(messages=messages, **kwargs)
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
     if record is not None:
@@ -89,6 +98,23 @@ def call_llm(
         record(pt, ct, tt, cost, elapsed_ms)
 
     return response.choices[0].message.model_dump(exclude_unset=True)
+
+
+def _degenerate(response) -> bool:
+    """True when a 'successful' completion is actually an upstream failure:
+    an explicit error finish_reason, or a message carrying neither content nor
+    tool calls. Provider-agnostic and fail-safe (any parse issue -> False)."""
+    try:
+        choice = response.choices[0]
+        raw_fr = str(getattr(choice, "finish_reason", "") or "").lower()
+        if raw_fr == "error":
+            return True
+        msg = choice.message
+        content = (getattr(msg, "content", None) or "").strip()
+        tool_calls = getattr(msg, "tool_calls", None)
+        return not content and not tool_calls
+    except Exception:  # noqa: BLE001
+        return False
 
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
