@@ -62,6 +62,9 @@ class HarnessConfig:
     # --- v5: obligation-driven execution ---
     enable_obligations: bool = True      # computed obligations from exec-compiled rules (hard)
     enable_ledger: bool = True           # request ledger -> final-reply coverage candidate
+    # --- v6: disambiguation-split gates ---
+    enable_future_guard: bool = True     # future/arrival-time conditions vs 'currently' anchoring
+    enable_refusal_read: bool = True     # refusal without reading state -> demand the read (hard)
     escalation_model: str | None = None  # stronger model for persistent hard findings (ESCALATION_LLM)
 
     # CoVe revise rounds (verify->revise->re-verify; the loop exits early on a
@@ -106,6 +109,8 @@ class HarnessConfig:
             enable_sanitize=_flag("ENABLE_SANITIZE", True),
             enable_obligations=_flag("ENABLE_OBLIGATIONS", True),
             enable_ledger=_flag("ENABLE_LEDGER", True),
+            enable_future_guard=_flag("ENABLE_FUTURE_GUARD", True),
+            enable_refusal_read=_flag("ENABLE_REFUSAL_READ", True),
             escalation_model=(os.getenv("ESCALATION_LLM") or None),
             cove_rounds=_int("COVE_ROUNDS", 2),
             vote_n=_int("VOTE_N", 1),
@@ -136,6 +141,8 @@ class HarnessConfig:
             "sanitize": self.enable_sanitize,
             "obligations": self.enable_obligations,
             "ledger": self.enable_ledger,
+            "future_guard": self.enable_future_guard,
+            "refusal_read": self.enable_refusal_read,
             "escalation_model": self.escalation_model,
             "cove_rounds": self.cove_rounds,
             "vote_n": self.vote_n,

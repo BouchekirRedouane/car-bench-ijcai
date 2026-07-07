@@ -82,6 +82,15 @@ DEFAULTS: dict[str, str] = {
         "   what the context is and never ask the user for information those reads provide. Prefer editing the\n"
         "   existing state in place over deleting and recreating it."
     ),
+    "directive.10": (
+        "TIME-SHIFTED CONDITIONS. When a request depends on a FUTURE moment (an arrival, a stated time\n"
+        "   window like \"between 7 and 7:45 PM\", \"still open when I get there\"): never evaluate it with\n"
+        "   current-moment filters or the current clock, and never refuse because no future-time filter\n"
+        "   exists. Compute the target moment yourself (current time plus travel duration from the route\n"
+        "   data), fetch the data WITHOUT current-moment filters (results carry opening hours, and\n"
+        "   time-parameterized reads accept a target hour and day), then evaluate the user's condition from\n"
+        "   the returned fields and act on the items that satisfy it."
+    ),
     # ------------------------------------------------------------------ #
     # LLM prompts (whole-prompt tunables)
     # ------------------------------------------------------------------ #
@@ -218,6 +227,32 @@ Your previously proposed action was:
         "required tool, parameter, or data field is genuinely missing is the refusal correct — then "
         "discard this finding."
     ),
+    "finding.refusal_read": (
+        "You are telling the user this cannot be done, but you have not read the relevant state: "
+        "call {reads} first (read-only, always safe). After reading, check whether the requested "
+        "OUTCOME can be reached with the available write tools for this subsystem using explicit "
+        "values you compute from what you read — goals like matching, syncing, equalizing, or "
+        "restoring are achieved by setting each item to the computed target value with the "
+        "subsystem's normal write tool. Refuse only if the outcome truly cannot be reached with "
+        "the available tools, and then offer the concrete alternative you CAN do."
+    ),
+    "finding.future_condition": (
+        "The user's request depends on a FUTURE moment (an arrival or a stated time window), but "
+        "your action is anchored to the PRESENT moment. Do not use current-moment filters "
+        "(\"currently ...\") and do not refuse because no future-time filter exists. Instead: "
+        "(1) compute the target moment from the data you have — for an arrival, current time plus "
+        "the travel duration from the route data; (2) fetch the data WITHOUT current-moment "
+        "filters — results carry opening hours, and time-parameterized reads accept a target hour "
+        "and day; (3) evaluate the user's time condition yourself from the returned fields and act "
+        "on the items that satisfy it."
+    ),
+    "finding.future_time_arg": (
+        "This read takes time arguments: {calls}. The user's condition applies at a FUTURE "
+        "moment, not necessarily now. VERIFY that the time arguments equal the moment the "
+        "condition applies to — for an arrival, that is the current time plus the route's travel "
+        "duration — and correct them if they merely repeat the current clock. Discard this "
+        "finding if the arguments already reflect the correct target moment."
+    ),
     "finding.unknown_ack": (
         "A tool result this task ({fields}) contained unknown/unavailable values, but your reply "
         "summarizes the outcome without mentioning it. Keep the reply otherwise the same, but "
@@ -305,7 +340,8 @@ Your previously proposed action was:
         "current state, arguments included — use them exactly as written): {calls}. Evidence: "
         "{reasons}. Add ONLY these calls to your current action; do not re-derive or guess "
         "different arguments, and do NOT repeat any action you already executed earlier in "
-        "this task."
+        "this task. If a required call remedies a condition that one of your OWN proposed calls "
+        "creates, keep your call and place the required call AFTER it."
     ),
     "finding.obligation_scope": (
         "Your '{tool}' call uses an aggregate 'ALL' argument, but the policy condition is met by "

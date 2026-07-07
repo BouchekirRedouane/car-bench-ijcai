@@ -612,6 +612,135 @@ def check_refusal(draft: dict, messages: list[dict], tools) -> list[str]:
     return [TUN["finding.refusal"].format(candidates=", ".join(candidates[:4]))]
 
 
+def _recent_user_text(messages: list[dict], last_n: int = 3) -> str:
+    """The last few user messages joined (a confirmation like 'yes, do it'
+    carries no subject words — the request it refers to is earlier)."""
+    out: list[str] = []
+    for m in reversed(messages):
+        if m.get("role") == "user" and m.get("content"):
+            out.append(str(m["content"]))
+            if len(out) >= last_n:
+                break
+    return " ".join(out)
+
+
+def check_refusal_read(draft: dict, messages: list[dict], tools) -> list[str]:
+    """Refusal-without-evidence gate (HARD, read-only remedy).
+
+    A reply that tells the user something cannot be done, made without ever
+    reading the subsystem's state, is a guess — the live disambiguation_16
+    failure ('can't sync the window positions', zero tool calls, while
+    read + write tools for windows existed and the outcome was computable).
+
+    The demanded remedy is ONLY a read: reads are score-free under the
+    benchmark's subset semantics on every split, so a false positive costs one
+    safe call — it can never force a wrong write. Fires only when BOTH a read
+    and a write tool share subject tokens with the request, the read takes no
+    required parameters, and it was never called in this task."""
+    if _calls(draft):
+        return []
+    content = (draft.get("content") or "").strip()
+    if not content or not any(p in content.lower() for p in _ADMIT_PATTERNS):
+        return []
+    user_text = _recent_user_text(messages)
+    req = {_norm_tok(t) for t in tokens(user_text) if len(t) > 3} - _CHANGE_VERBS
+    if not req:
+        return []
+    called = {
+        (tc.get("function") or {}).get("name")
+        for m in messages
+        if m.get("role") == "assistant"
+        for tc in (m.get("tool_calls") or [])
+    }
+    write_match = False
+    reads: list[str] = []
+    for name, params in sorted(tool_index(tools).items()):
+        subject = {_norm_tok(t) for t in tokens(name) if len(t) > 3} - _CHANGE_VERBS
+        if not (subject & req):
+            continue
+        if _is_read_tool(name):
+            if name not in called and not ((params or {}).get("required") or []):
+                reads.append(name)
+        else:
+            write_match = True
+    if not (write_match and reads):
+        return []
+    return [TUN["finding.refusal_read"].format(reads=", ".join(reads[:3]))]
+
+
+# Future/arrival-time expressions in the user's own words. Generic shapes only:
+# clock times, arrival phrasing, day-part windows — no benchmark vocabulary.
+_FUTURE_TIME_RE = re.compile(
+    r"\b\d{1,2}\s*(?::\d{2})?\s*(?:am|pm)\b"
+    r"|\b\d{1,2}:\d{2}\b"
+    r"|\bwhen (?:i|we) (?:arrive|get there)\b"
+    r"|\b(?:on|upon) arrival\b|\barrival time\b|\bby the time\b"
+    r"|\bstill (?:be )?open\b|\bopen (?:then|by then)\b"
+    r"|\btonight\b|\bthis evening\b|\btomorrow\b"
+    r"|\b(?:dinner|lunch|breakfast) ?time\b"
+    r"|\bin \d+ (?:minutes?|hours?)\b",
+    re.IGNORECASE,
+)
+
+_PRESENT_ANCHORS = ("currently", "right now", "at the moment")
+
+_TIME_ARG_TOKENS = {"hour", "time", "day", "month", "minute", "date"}
+
+
+def check_future_condition(draft: dict, messages: list[dict], tools) -> list[str]:
+    """Future-condition gate (HARD, deterministic).
+
+    The user's constraint references a FUTURE moment (a time window, an
+    arrival), yet the draft anchors to the present: a tool call carrying a
+    'currently'-style filter, or a refusal justified by only-current
+    capability. Live failures: disambiguation_54 (filtered currently_open for
+    a stop 13 hours away — correct behaviour is an unfiltered search plus
+    reading the opening hours) and disambiguation_55 (refused a stated time
+    window three times as 'I can only search currently open'). Both trigger
+    conditions must hold, so requests without a future expression — including
+    explicit 'currently available' asks — can never fire it."""
+    user_text = _recent_user_text(messages)
+    if not _FUTURE_TIME_RE.search(user_text):
+        return []
+    calls = _calls(draft)
+    if calls:
+        for tc in calls:
+            blob = json.dumps(_args(tc), ensure_ascii=False).lower()
+            if "currently" in blob:
+                return [TUN["finding.future_condition"]]
+        return []
+    low = (draft.get("content") or "").strip().lower()
+    if not low:
+        return []
+    if any(p in low for p in _ADMIT_PATTERNS) and any(a in low for a in _PRESENT_ANCHORS):
+        return [TUN["finding.future_condition"]]
+    return []
+
+
+def check_future_time_arg(draft: dict, messages: list[dict]) -> list[str]:
+    """Future-time argument candidate (teacher-verified).
+
+    When the user's condition applies at a future moment and the draft is a
+    READ with time-named arguments, ask the teacher to verify those arguments
+    reflect the target moment (e.g. arrival = now + travel duration), not the
+    current clock — the live disambiguation_53 failure (weather checked at the
+    current hour for an arrival three hours away)."""
+    user_text = _recent_user_text(messages)
+    if not _FUTURE_TIME_RE.search(user_text):
+        return []
+    hits: list[str] = []
+    for tc in _calls(draft):
+        name = (tc.get("function") or {}).get("name") or ""
+        if not _is_read_tool(name):
+            continue
+        timed = [k for k in _args(tc) if set(k.lower().split("_")) & _TIME_ARG_TOKENS]
+        if timed:
+            hits.append(f"{name}({', '.join(sorted(timed))})")
+    if not hits:
+        return []
+    return [TUN["finding.future_time_arg"].format(calls="; ".join(hits[:3]))]
+
+
 _UNKNOWN_VALUES = ('"unknown"', ": null", "'unknown'", '"n/a"', '"not available"')
 
 
@@ -1238,6 +1367,15 @@ def run_verification(draft, messages, tools, rules, prov, cfg, record=None, stag
                 _stage("gather-prefs", gather_prefs_advisory(draft, messages, tools), hard)
         if cfg.enable_disambig:
             _stage("ask-guard", check_ask_guard(draft, messages, tools, rules), hard)
+        if getattr(cfg, "enable_future_guard", True):
+            # v6: future/arrival-time conditions must not be answered with
+            # current-moment filters or current-only refusals
+            _stage("future-condition", check_future_condition(draft, messages, tools), hard)
+            _stage("future-time-arg", check_future_time_arg(draft, messages), advisories)
+        if getattr(cfg, "enable_refusal_read", True):
+            # v6: a refusal made without ever reading the subsystem state is a
+            # guess — demand the (score-free) read first
+            _stage("refusal-read", check_refusal_read(draft, messages, tools), hard)
         if getattr(cfg, "enable_refusal_check", True):
             _stage("refusal", check_refusal(draft, messages, tools), advisories)
             # HARD: the evidence is deterministic ('unknown' literally appeared in

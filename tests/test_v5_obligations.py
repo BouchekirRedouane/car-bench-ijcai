@@ -204,7 +204,9 @@ def test_parenthesized_names_from_live_compiler_are_normalized():
 def test_stale_read_demands_refresh_not_redundant_obligations():
     """Live base_32 failure: ALL windows were closed AFTER the positions read;
     the engine then demanded redundant per-item closes from the stale values.
-    A write sharing the read's subject must invalidate the read."""
+    v6: the close is the rule's own obligation tool, so the engine SIMULATES
+    it (all positions := 0) instead of invalidating the read — no redundant
+    obligations, and no re-read roundtrip either."""
     msgs = _msgs(STATE) + [
         {"role": "assistant", "tool_calls": [
             {"function": {"name": "open_close_window",
@@ -213,8 +215,7 @@ def test_stale_read_demands_refresh_not_redundant_obligations():
          "content": '{"result": {"window": "ALL", "percentage": 0}}'},
     ]
     findings = O.check_obligations(AC_DRAFT, msgs, WINDOW_TOOLS, WINDOW_RULE)
-    assert len(findings) == 1 and "get_vehicle_window_positions" in findings[0], findings
-    assert "DRIVER" not in findings[0]  # no obligations computed from stale data
+    assert findings == [], findings
 
 
 def test_executed_obligations_count_as_covered():

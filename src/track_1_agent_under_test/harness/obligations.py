@@ -116,21 +116,124 @@ def _subject_tokens(name: str) -> set:
     return {x[:-1] if len(x) > 4 and x.endswith("s") else x for x in toks} - _ATTRS
 
 
-def _stale(read: str, read_idx: int, messages: list[dict]) -> bool:
-    """A read result is STALE when a write sharing its subject executed AFTER
-    it (observed live: closed ALL windows, then the engine computed
-    obligations from the pre-close positions and demanded redundant closes)."""
-    subj = _subject_tokens(read)
-    if not subj:
-        return False
-    for m in messages[read_idx + 1:]:
-        if m.get("role") != "assistant":
+def _writes_after(read_idx: int, messages: list[dict]) -> list[tuple]:
+    """Write calls executed after message index `read_idx`, in order, with a
+    failure flag from the following tool result (a failed write changed
+    nothing — simulating it would corrupt the projected state)."""
+    out: list[tuple] = []
+    for i, m in enumerate(messages):
+        if i <= read_idx or m.get("role") != "assistant":
             continue
         for tc in (m.get("tool_calls") or []):
-            n = (tc.get("function") or {}).get("name") or ""
-            if n and not _is_read_name(n) and (_subject_tokens(n) & subj):
-                return True
-    return False
+            fn = tc.get("function") or {}
+            n = (fn.get("name") or "").split("(")[0].strip()
+            if not n or _is_read_name(n):
+                continue
+            raw = fn.get("arguments")
+            try:
+                args = raw if isinstance(raw, dict) else json.loads(raw or "{}")
+            except Exception:
+                args = {}
+            failed = False
+            for m2 in messages[i + 1:]:
+                if m2.get("role") == "tool" and (m2.get("name") or "") == n:
+                    up = str(m2.get("content") or "").upper()
+                    failed = '"STATUS": "ERROR"' in up or '"STATUS":"ERROR"' in up
+                    break
+            out.append((n, args, failed))
+    return out
+
+
+def _sim_specs(rules, tools) -> dict:
+    """Per write-tool simulation specs derived from the compiled execs: an
+    obligation template like open_close_window({"window": "<item>",
+    "percentage": 0}) tells us, generically, that a live call
+    open_close_window(window=X, percentage=P) sets field
+    window_{x}_position := P on the read it belongs to. Nothing here is
+    benchmark-specific — the mapping comes from the compiled rule itself."""
+    specs: dict[str, list] = {}
+    for rule in rules or []:
+        ex = rule.get("exec")
+        if not valid_exec(ex):
+            continue
+        ob = ex["obligation"]
+        tool = ob["tool"].split("(")[0].strip()
+        args = ob.get("args") or {}
+        item_key = next((k for k, v in args.items()
+                         if isinstance(v, str) and "<item>" in v), None)
+        value_keys = [k for k in args if k != item_key]
+        if len(value_keys) != 1:
+            continue  # cannot tell which argument carries the new value
+        specs.setdefault(tool, []).append({
+            "read": ex["read"].split("(")[0].strip(),
+            "pattern": ex["field_pattern"],
+            "item_key": item_key,
+            "value_key": value_keys[0],
+        })
+    return specs
+
+
+def _project(body: dict, read: str, read_idx: int, messages: list[dict],
+             draft_writes, specs: dict) -> tuple[dict, set]:
+    """Project a read result forward through the writes that happened after it
+    (and the draft's own proposed writes): writes the compiled execs can
+    SIMULATE update the field values; writes that merely share the field's
+    subject invalidate (drop) that field. Returns (projected_body, dropped).
+
+    This replaces the earlier whole-read staleness: invalidating the entire
+    read killed unrelated fields too (live: set_climate_temperature blanked
+    fan_speed, silencing the fan-speed rule for the rest of the task)."""
+    body = dict(body)
+    dropped: set[str] = set()
+
+    def _drop_overlapping(write_name: str, only_pattern: str | None = None):
+        wt = _subject_tokens(write_name)
+        if not wt:
+            return
+        for f in list(body):
+            if only_pattern is not None and _wildcard_capture(only_pattern, f) is None:
+                continue
+            if _subject_tokens(f) & wt:
+                dropped.add(f)
+                body.pop(f)
+
+    writes = _writes_after(read_idx, messages) + [(n, a, False) for n, a in (draft_writes or [])]
+    for name, args, failed in writes:
+        my_specs = [s for s in (specs.get(name) or []) if s["read"] == read]
+        if failed:
+            if my_specs:
+                for s in my_specs:
+                    _drop_overlapping(name, s["pattern"])
+            else:
+                _drop_overlapping(name)
+            continue
+        if not my_specs:
+            _drop_overlapping(name)
+            continue
+        for s in my_specs:
+            val = args.get(s["value_key"])
+            if val is None:
+                _drop_overlapping(name, s["pattern"])
+                continue
+            if s["item_key"] is None:
+                for f in list(body):
+                    if _wildcard_capture(s["pattern"], f) is not None:
+                        body[f] = val
+                continue
+            item = args.get(s["item_key"])
+            if item is None:
+                _drop_overlapping(name, s["pattern"])
+            elif str(item).upper().startswith("ALL"):
+                for f in list(body):
+                    if _wildcard_capture(s["pattern"], f) is not None:
+                        body[f] = val
+            else:
+                field = s["pattern"].replace("*", str(item).lower())
+                if field in body:
+                    body[field] = val
+                else:  # naming mismatch -> conservative: this state is unknown
+                    _drop_overlapping(name, s["pattern"])
+    return body, dropped
 
 
 def _wildcard_capture(pattern: str, field: str) -> Optional[str]:
@@ -176,16 +279,25 @@ def _bind_item(template_value, item: str, schema_prop: dict):
 # --------------------------------------------------------------------------- #
 # Evaluation
 # --------------------------------------------------------------------------- #
-def evaluate(rules, tools, messages, triggered_by: set) -> dict:
+def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None) -> dict:
     """Evaluate every valid exec rule triggered by the proposed writes.
 
-    Returns {obligations, missing_reads, unknown_fields, total_matched}:
+    `draft_writes` (optional [(name, args), ...]) are the draft's OWN proposed
+    write calls: when given, conditions are evaluated on the simulated
+    POST-WRITE state — a draft that itself creates a policy condition (live:
+    opened ALL windows to 50% with the AC on) produces its remediation
+    obligations instead of passing unseen.
+
+    Returns {obligations, missing_reads, unknown_fields, total_matched, items}:
       obligations   : [{tool, args, reason, rule}] with fully computed args
-      missing_reads : reads the conditions need but were never called
+      missing_reads : reads the conditions need but were never called (or whose
+                      relevant fields were invalidated by unsimulatable writes)
       unknown_fields: state fields whose value is unknown/unavailable
       total_matched : pattern-matched field count per rule id (for ALL-scope checks)
     """
     results_idx = latest_results_indexed(messages)
+    specs = _sim_specs(rules, tools)
+    projected: dict[str, tuple] = {}  # read -> (projected body, dropped fields)
     all_tools = { (t.get("function") or {}).get("name") for t in tools or [] } - {None}
     obligations: list[dict] = []
     missing_reads: set[str] = set()
@@ -218,9 +330,15 @@ def evaluate(rules, tools, messages, triggered_by: set) -> dict:
             if read in all_tools:
                 missing_reads.add(read)
             continue
-        body, read_idx = entry
-        if _stale(read, read_idx, messages):
-            missing_reads.add(read)  # state changed since the read: demand a fresh one
+        if read not in projected:
+            projected[read] = _project(entry[0], read, entry[1], messages,
+                                       draft_writes, specs)
+        body, dropped = projected[read]
+        if not any(_wildcard_capture(ex["field_pattern"], f) is not None for f in body) \
+                and any(_wildcard_capture(ex["field_pattern"], f) is not None for f in dropped):
+            # every relevant field was invalidated by unsimulatable writes:
+            # the state is unknown again -> demand a fresh read
+            missing_reads.add(read)
             continue
         schema_props = (_tool_schema(tools, ob_tool).get("properties") or {})
         matched = 0
@@ -299,6 +417,40 @@ def _render(ob: dict) -> str:
     return f"{ob['tool']}({json.dumps(ob['args'], ensure_ascii=False)})"
 
 
+def _aggregate_all(missing: list[dict], ev: dict, tools) -> list[dict]:
+    """Collapse per-item obligations into ONE aggregate call when EVERY matched
+    item qualifies with identical remaining arguments and the item parameter's
+    schema enum declares an 'ALL'-style member. The benchmark's canonical
+    action for 'apply to all items' is the single aggregate call — per-item
+    sequences visit intermediate states the graded chain never contains."""
+    groups: dict[tuple, list[dict]] = {}
+    for ob in missing:
+        groups.setdefault((ob["rule"], ob["tool"]), []).append(ob)
+    out: list[dict] = []
+    for (rule_id, tool), obs in groups.items():
+        rec = ev["items"].get(tool) or {}
+        item_key = rec.get("item_key")
+        total = ev["total_matched"].get(rule_id, 0)
+        if not item_key or len(obs) < 2 or len(obs) != total:
+            out.extend(obs)
+            continue
+        rest = {k: v for k, v in obs[0]["args"].items() if k != item_key}
+        if any({k: v for k, v in o["args"].items() if k != item_key} != rest
+               for o in obs[1:]):
+            out.extend(obs)
+            continue
+        enum = ((_tool_schema(tools, tool).get("properties") or {})
+                .get(item_key) or {}).get("enum") or []
+        all_member = next((e for e in enum if str(e).upper().startswith("ALL")), None)
+        if all_member is None:
+            out.extend(obs)
+            continue
+        out.append({"tool": tool, "args": {**rest, item_key: all_member},
+                    "reason": obs[0]["reason"] + " (every matched item qualifies)",
+                    "rule": rule_id})
+    return out
+
+
 def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[str]:
     """Hard gate: compare the draft's write calls against the COMPUTED
     obligations. Emits exact, ready-to-execute corrections."""
@@ -319,9 +471,22 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
         triggered.add(name)
     if not triggered:
         return []
+    draft_writes = [(n, a) for n, a in draft_calls if not _is_read_name(n)]
+    if not draft_writes:
+        return []  # obligations are checked at write time, never mid-gather
+
+    # A rule's trigger may have executed EARLIER in the task (live: the AC was
+    # turned on in a previous turn; this turn's window write re-created the
+    # rule's condition) — the policy state condition still binds.
+    triggered |= {n for n, _a, _f in _writes_after(-1, messages)}
 
     try:
+        # Pass A (current state): judges whether the draft's writes are
+        # warranted — scope, inverse scope, unneeded-call checks.
         ev = evaluate(rules, tools, messages, triggered)
+        # Pass B (simulated post-draft state): whatever condition is still —
+        # or newly — true after the draft's own writes is an unmet obligation.
+        ev_post = evaluate(rules, tools, messages, triggered, draft_writes=draft_writes)
     except Exception as e:  # noqa: BLE001 - the engine must never crash a turn
         logger.warning("obligation engine failed (%s); skipping", e)
         return []
@@ -343,11 +508,11 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
             executed.add((fn0.get("name"), json.dumps(a0, sort_keys=True)))
 
     findings: list[str] = []
-    if ev["missing_reads"]:
+    if ev["missing_reads"] or ev_post["missing_reads"]:
         findings.append(TUN["finding.obligation_read"].format(
-            reads=", ".join(sorted(ev["missing_reads"]))))
+            reads=", ".join(sorted(ev["missing_reads"] | ev_post["missing_reads"]))))
 
-    # Which computed obligations are not covered by the draft?
+    # Which post-draft obligations are not covered by the draft?
     def covered(ob) -> bool:
         if (ob["tool"], json.dumps(ob["args"], sort_keys=True)) in executed:
             return True
@@ -357,31 +522,46 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
             if all(args.get(k) == v for k, v in ob["args"].items()):
                 return True
             # aggregate form: an 'ALL'-style argument covers every item only if
-            # every matched item qualified — checked below via total_matched
-            if any(isinstance(v, str) and v.upper() == "ALL" for v in args.values()):
-                total = ev["total_matched"].get(ob["rule"], 0)
-                per_rule = [o for o in ev["obligations"] if o["rule"] == ob["rule"]]
-                if total and len(per_rule) == total:
+            # every matched item qualified AND the remaining arguments agree —
+            # open_close_window(ALL, 50) does NOT cover a computed close-to-0
+            if any(isinstance(v, str) and str(v).upper().startswith("ALL")
+                   for v in args.values()):
+                total = ev_post["total_matched"].get(ob["rule"], 0)
+                per_rule = [o for o in ev_post["obligations"] if o["rule"] == ob["rule"]]
+                same_rest = all(
+                    args.get(k) == v for k, v in ob["args"].items()
+                    if not (isinstance(args.get(k), str)
+                            and str(args.get(k)).upper().startswith("ALL")))
+                if total and len(per_rule) == total and same_rest:
                     return True
         return False
 
-    missing = [ob for ob in ev["obligations"] if not covered(ob)]
+    missing = [ob for ob in ev_post["obligations"] if not covered(ob)]
     if missing:
+        missing = _aggregate_all(missing, ev_post, tools)
         findings.append(TUN["finding.obligation_missing"].format(
             calls="; ".join(_render(ob) for ob in missing[:6]),
             reasons="; ".join(f"{ob['tool']}: {ob['reason']} (rule {ob['rule']})"
                               for ob in missing[:6])))
 
-    # ALL used although only a subset qualifies -> exact per-item replacement
+    # ALL used although only a subset qualifies -> exact per-item replacement.
+    # Applies only when the call plausibly IMPLEMENTS the rule (its remaining
+    # arguments equal the computed obligation's) — a user-requested ALL write
+    # with different values is not the rule's remediation.
     for name, args in draft_calls:
-        if not any(isinstance(v, str) and v.upper() == "ALL" for v in args.values()):
+        if not any(isinstance(v, str) and str(v).upper().startswith("ALL")
+                   for v in args.values()):
             continue
         per_tool = [ob for ob in ev["obligations"] if ob["tool"] == name]
         if not per_tool:
             continue
+        rest_match = all(
+            args.get(k) == v for k, v in per_tool[0]["args"].items()
+            if not (isinstance(args.get(k), str)
+                    and str(args.get(k)).upper().startswith("ALL")))
         rule_id = per_tool[0]["rule"]
         total = ev["total_matched"].get(rule_id, 0)
-        if total and len(per_tool) < total:
+        if rest_match and total and len(per_tool) < total:
             findings.append(TUN["finding.obligation_scope"].format(
                 tool=name,
                 calls="; ".join(_render(ob) for ob in per_tool[:6])))

@@ -12,7 +12,7 @@ from .tunables import TUN
 HARNESS_SYSTEM_SUFFIX = (
     TUN["suffix.header"]
     + "\n"
-    + "\n".join(f"{i}. {TUN[f'directive.{i}']}" for i in range(1, 10))
+    + "\n".join(f"{i}. {TUN[f'directive.{i}']}" for i in range(1, 11))
     + "\n"
 )
 
