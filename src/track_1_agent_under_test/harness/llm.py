@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import Any, Callable, Optional
@@ -31,6 +32,14 @@ def build_completion_kwargs(
     # timeouts, connection errors) so a network blip cannot kill a turn.
     # litellm only retries retryable exception classes, never bad requests.
     kwargs["num_retries"] = 2
+    # Optional output cap (LLM_MAX_TOKENS). Without max_tokens, OpenRouter
+    # pre-authorizes the model's FULL output window (65k tokens) against the
+    # key's remaining credit — on a nearly-spent key every call 402s before it
+    # even runs. Replies here are short (spoken text / tool calls), so a cap
+    # like 8192 changes nothing behaviourally while shrinking the pre-auth 8x.
+    _cap = os.getenv("LLM_MAX_TOKENS")
+    if _cap and _cap.strip().isdigit():
+        kwargs["max_tokens"] = int(_cap)
     if temperature is not None:
         kwargs["temperature"] = temperature
     if thinking:
