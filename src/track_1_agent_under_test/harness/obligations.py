@@ -279,7 +279,8 @@ def _bind_item(template_value, item: str, schema_prop: dict):
 # --------------------------------------------------------------------------- #
 # Evaluation
 # --------------------------------------------------------------------------- #
-def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None) -> dict:
+def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None,
+             draft_triggered: set | None = None) -> dict:
     """Evaluate every valid exec rule triggered by the proposed writes.
 
     `draft_writes` (optional [(name, args), ...]) are the draft's OWN proposed
@@ -287,6 +288,13 @@ def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None) -> di
     POST-WRITE state — a draft that itself creates a policy condition (live:
     opened ALL windows to 50% with the AC on) produces its remediation
     obligations instead of passing unseen.
+
+    `draft_triggered` (optional set of tool names) restricts RE-READ demands to
+    rules whose trigger is in the CURRENT draft. With triggers widened to
+    history writes, an invalidated read would otherwise be re-demanded on every
+    later write turn (live disambiguation_14: five re-read demands drove a
+    9-write thrash and an intermediate-state fail). A history-triggered rule
+    with unknown state now degrades silently instead — fail-safe, v4-style.
 
     Returns {obligations, missing_reads, unknown_fields, total_matched, items}:
       obligations   : [{tool, args, reason, rule}] with fully computed args
@@ -319,15 +327,18 @@ def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None) -> di
         ex = dict(ex, read=ex["read"].split("(")[0].strip(),
                   obligation=dict(ex["obligation"],
                                   tool=ex["obligation"]["tool"].split("(")[0].strip()))
-        if not (resolved_triggers(rule, all_tools) & triggered_by):
+        trig = resolved_triggers(rule, all_tools)
+        if not (trig & triggered_by):
             continue
+        # Re-read demands only for rules the DRAFT itself triggers (see docstring).
+        may_demand_read = draft_triggered is None or bool(trig & draft_triggered)
         ob_tool = ex["obligation"]["tool"]
         if ob_tool not in all_tools:
             continue  # obligation tool unavailable -> capability/teacher territory
         read = ex["read"]
         entry = results_idx.get(read)
         if entry is None:
-            if read in all_tools:
+            if read in all_tools and may_demand_read:
                 missing_reads.add(read)
             continue
         if read not in projected:
@@ -337,8 +348,10 @@ def evaluate(rules, tools, messages, triggered_by: set, draft_writes=None) -> di
         if not any(_wildcard_capture(ex["field_pattern"], f) is not None for f in body) \
                 and any(_wildcard_capture(ex["field_pattern"], f) is not None for f in dropped):
             # every relevant field was invalidated by unsimulatable writes:
-            # the state is unknown again -> demand a fresh read
-            missing_reads.add(read)
+            # the state is unknown again -> demand a fresh read (draft-triggered
+            # rules only; history-triggered rules degrade silently)
+            if may_demand_read:
+                missing_reads.add(read)
             continue
         schema_props = (_tool_schema(tools, ob_tool).get("properties") or {})
         matched = 0
@@ -480,13 +493,15 @@ def check_obligations(draft: dict, messages: list[dict], tools, rules) -> list[s
     # rule's condition) — the policy state condition still binds.
     triggered |= {n for n, _a, _f in _writes_after(-1, messages)}
 
+    draft_names = {n for n, _a in draft_calls}
     try:
         # Pass A (current state): judges whether the draft's writes are
         # warranted — scope, inverse scope, unneeded-call checks.
-        ev = evaluate(rules, tools, messages, triggered)
+        ev = evaluate(rules, tools, messages, triggered, draft_triggered=draft_names)
         # Pass B (simulated post-draft state): whatever condition is still —
         # or newly — true after the draft's own writes is an unmet obligation.
-        ev_post = evaluate(rules, tools, messages, triggered, draft_writes=draft_writes)
+        ev_post = evaluate(rules, tools, messages, triggered, draft_writes=draft_writes,
+                           draft_triggered=draft_names)
     except Exception as e:  # noqa: BLE001 - the engine must never crash a turn
         logger.warning("obligation engine failed (%s); skipping", e)
         return []

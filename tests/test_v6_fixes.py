@@ -384,6 +384,52 @@ def test_alien_domain_simulation():
     assert O.check_obligations(draft2, msgs, tools, rules) == []
 
 
+
+
+def test_history_triggered_rule_never_spams_reread():
+    """dis_14 regression: AC went on earlier (history trigger); later defrost
+    writes invalidate the window fields. A draft that does NOT itself trigger
+    the rule must not be interrupted with re-read demands — the rule degrades
+    silently. (Live: five re-read demands drove a 9-write thrash.)"""
+    msgs = [
+        {"role": "system", "content": "p"},
+        {"role": "user", "content": "Turn on the AC."},
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "get_vehicle_window_positions", "arguments": "{}"}}]},
+        {"role": "tool", "name": "get_vehicle_window_positions",
+         "content": '{"result": {"window_driver_position": 60, "window_passenger_position": 60, '
+                    '"window_driver_rear_position": 60, "window_passenger_rear_position": 60}}'},
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "set_air_conditioning", "arguments": {"on": True}}},
+            {"function": {"name": "open_close_window",
+                          "arguments": {"window": "ALL", "percentage": 0}}}]},
+        {"role": "tool", "name": "set_air_conditioning", "content": '{"status": "SUCCESS"}'},
+        {"role": "tool", "name": "open_close_window", "content": '{"status": "SUCCESS"}'},
+        {"role": "user", "content": "Now the defrost please."},
+        # an unsimulatable window-subject write that invalidates the position fields
+        {"role": "assistant", "tool_calls": [
+            {"function": {"name": "set_window_defrost",
+                          "arguments": {"defrost_window": "ALL", "on": True}}}]},
+        {"role": "tool", "name": "set_window_defrost", "content": '{"status": "SUCCESS"}'},
+    ]
+    tools = WINDOW_TOOLS + [
+        {"function": {"name": "set_window_defrost",
+                      "parameters": {"type": "object", "properties": {
+                          "defrost_window": {"type": "string"}, "on": {"type": "boolean"}}}}},
+        {"function": {"name": "set_fan_speed",
+                      "parameters": {"type": "object", "properties": {"level": {"type": "number"}}}}},
+    ]
+    draft = {"tool_calls": [{"function": {"name": "set_fan_speed",
+                                          "arguments": {"level": 2}}}]}
+    findings = O.check_obligations(draft, msgs, tools, WINDOW_RULE)
+    assert findings == [], findings
+    # but the SAME situation with the trigger in the draft still demands the read
+    draft2 = {"tool_calls": [{"function": {"name": "set_air_conditioning",
+                                           "arguments": {"on": True}}}]}
+    findings2 = O.check_obligations(draft2, msgs, tools, WINDOW_RULE)
+    assert len(findings2) == 1 and "get_vehicle_window_positions" in findings2[0], findings2
+
+
 if __name__ == "__main__":
     import traceback
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
