@@ -108,9 +108,11 @@ Read the policy and extract every enforceable behavioural rule. Classify each in
 For each rule output:
   id            : the policy number if present (e.g. "005"), else a short slug.
   type          : one of the types above.
-  trigger_tools : list of tool/function names this rule applies to. Use ONLY names that appear
-                  EXACTLY in the AVAILABLE TOOL NAMES list given below. Pick every listed tool the
-                  rule plausibly governs. Empty list if the rule applies to user-facing replies
+  trigger_tools : list of tool/function names whose INVOCATION activates this rule — the tools in
+                  the rule's "when doing X ..." part. Use ONLY names that appear EXACTLY in the
+                  AVAILABLE TOOL NAMES list given below. NEVER include a tool that merely performs
+                  the rule's remedy or follow-up: for "when doing X, also do Y", list the X tool
+                  only, never the Y tool. Empty list if the rule applies to user-facing replies
                   rather than a specific tool.
   requirement   : one imperative sentence telling the assistant what to do to comply.
 
