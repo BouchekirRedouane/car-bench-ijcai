@@ -1,0 +1,33 @@
+# Manual-LLM (GUI) probe for the v6 fix — two tasks only.
+#
+# disambiguation_14: the task the re-read-spam bug broke (AC trigger in
+#                    history + defrost writes). Watch that the harness no
+#                    longer injects "call get_vehicle_window_positions FIRST"
+#                    on later turns.
+# disambiguation_22: the canonical ALL-close task v6 fixed — sanity that the
+#                    fix did not undo it.
+#
+# Requires MANUAL_LLM=1 in .env. Every model call (student, teacher, compiler,
+# user-sim, judge) stops at http://127.0.0.1:8765 — copy the prompt into any
+# chat GUI, paste the reply back, submit. Zero API cost.
+#
+# Run:  uv run car-bench-run scenarios/track_1_agent_under_test/local_disambiguation_manual.toml --show-logs
+
+[evaluator]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/google/gemini-2.5-flash"
+
+[config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
+num_trials = 1
+task_split = "train"
+tasks_disambiguation_task_id_filter = ["disambiguation_14", "disambiguation_22"]
+
+max_steps = 50

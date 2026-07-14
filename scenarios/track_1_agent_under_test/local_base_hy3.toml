@@ -1,0 +1,40 @@
+# Hy3-free trial scenario (Track 1, base split probe).
+#
+# Student (agent under test) runs on Tencent Hy3 295B-A21B via OpenRouter's
+# FREE endpoint ($0/M tokens). Verified against the OpenRouter models API:
+#   * tencent/hy3:free supports `tools` + `tool_choice`  -> student works.
+#   * it does NOT support `response_format` -> every JSON-mode harness call
+#     (policy compiler, exec pass, CoVe teacher, ledger) must stay on the
+#     TEACHER_LLM from .env (gemini-2.5-flash) — do not point TEACHER_LLM here.
+#
+# Free-tier caveats (why "free" isn't free):
+#   * ~20 requests/min shared across all :free models; 50 requests/DAY if the
+#     account has under $10 lifetime credit purchases, 1000/day otherwise.
+#     One base task is roughly 15-40 student calls, so start with this 4-task
+#     probe, not the full split.
+#   * Free endpoints may be provider-logged; fine for local trials.
+#   * Run with VOTE_N=1: 3x sampling on a 20 req/min budget just trips the
+#     rate limiter. The runner starts the agent server with an inherited
+#     environment and loads .env with override=False, so exporting VOTE_N on
+#     the command line beats the VOTE_N=3 in .env:
+#
+# Run:  VOTE_N=1 uv run car-bench-run scenarios/track_1_agent_under_test/local_base_hy3.toml --show-logs
+
+[evaluator]
+endpoint = "http://127.0.0.1:8081"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 8081"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:8090"
+cmd = "python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 8090 --agent-llm openrouter/tencent/hy3:free"
+
+[config]
+user_model = "openrouter/google/gemini-2.5-flash"
+user_provider = "openrouter"
+policy_evaluator_model = "openrouter/google/gemini-2.5-flash"
+policy_evaluator_provider = "openrouter"
+num_trials = 1
+task_split = "train"
+tasks_base_task_id_filter = ["base_16", "base_32", "base_40", "base_94"]
+
+max_steps = 50

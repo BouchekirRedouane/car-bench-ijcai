@@ -1,0 +1,243 @@
+{
+  "count": 23,
+  "rules": [
+    {
+      "id": "002",
+      "type": "constraint",
+      "trigger_tools": [],
+      "requirement": "Use the metric system for distance (kilometers and meters) and temperature (degrees Celsius), and format datetime in 24h format."
+    },
+    {
+      "id": "004",
+      "type": "confirmation",
+      "trigger_tools": [],
+      "requirement": "Obtain explicit user confirmation before executing any tool whose description starts with REQUIRES_CONFIRMATION."
+    },
+    {
+      "id": "005",
+      "type": "precondition",
+      "trigger_tools": [
+        "open_close_sunroof"
+      ],
+      "requirement": "Only open the sunroof if the sunshade is already fully opened or is currently being opened in parallel."
+    },
+    {
+      "id": "007",
+      "type": "confirmation",
+      "trigger_tools": [
+        "open_close_window"
+      ],
+      "requirement": "Prompt for confirmation and warn about energy inefficiency if the user requests opening windows more than 25% while the air conditioning is on."
+    },
+    {
+      "id": "008",
+      "type": "confirmation",
+      "trigger_tools": [
+        "open_close_sunroof"
+      ],
+      "requirement": "Obtain explicit user confirmation to open the sunroof if the weather at the current location is not sunny, cloudy, or partly cloudy."
+    },
+    {
+      "id": "009",
+      "type": "confirmation",
+      "trigger_tools": [
+        "set_fog_lights"
+      ],
+      "requirement": "Obtain explicit user confirmation to set fog lights if the weather at the current location is not cloudy_and_thunderstorm or cloudy_and_hail."
+    },
+    {
+      "id": "010_a",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_window_defrost"
+      ],
+      "requirement": "Automatically set the fan speed to level 2 if it is currently below that level when activating window defrost."
+    },
+    {
+      "id": "010_b",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_window_defrost"
+      ],
+      "requirement": "Automatically set the fan airflow direction to WINDSHIELD if the current direction does not include it when activating window defrost."
+    },
+    {
+      "id": "010_c",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_window_defrost"
+      ],
+      "requirement": "Automatically turn on the air conditioning if it is not already active when activating window defrost."
+    },
+    {
+      "id": "011_a",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_air_conditioning"
+      ],
+      "requirement": "Automatically close all windows that are open more than 20% when setting the air conditioning to ON.",
+      "exec": {
+        "read": "get_vehicle_window_positions",
+        "field_pattern": "window_*_position",
+        "op": ">",
+        "value": 20,
+        "obligation": {
+          "tool": "open_close_window",
+          "args": {
+            "window": "",
+            "percentage": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "011_b",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_air_conditioning"
+      ],
+      "requirement": "Automatically set the fan speed to level 1 if it is currently at 0 when setting the air conditioning to ON.",
+      "exec": {
+        "read": "get_climate_settings",
+        "field_pattern": "fan_speed",
+        "op": "==",
+        "value": 0,
+        "obligation": {
+          "tool": "set_fan_speed",
+          "args": {
+            "level": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "012",
+      "type": "disclosure",
+      "trigger_tools": [
+        "set_climate_temperature"
+      ],
+      "requirement": "Inform the user if setting the temperature to a single seat zone results in a temperature difference of more than 3 degrees Celsius from other zones."
+    },
+    {
+      "id": "013_a",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_fog_lights"
+      ],
+      "requirement": "Automatically activate low beam headlights if they are off when activating fog lights.",
+      "exec": {
+        "read": "get_exterior_lights_status",
+        "field_pattern": "low_beam_status",
+        "op": "==",
+        "value": "off",
+        "obligation": {
+          "tool": "set_head_lights_low_beams",
+          "args": {
+            "on": true
+          }
+        }
+      }
+    },
+    {
+      "id": "013_b",
+      "type": "auto_action",
+      "trigger_tools": [
+        "set_fog_lights"
+      ],
+      "requirement": "Automatically deactivate high beam headlights if they are on when activating fog lights.",
+      "exec": {
+        "read": "get_exterior_lights_status",
+        "field_pattern": "high_beam_status",
+        "op": "==",
+        "value": "on",
+        "obligation": {
+          "tool": "set_head_lights_high_beams",
+          "args": {
+            "on": false
+          }
+        }
+      }
+    },
+    {
+      "id": "014",
+      "type": "prohibition",
+      "trigger_tools": [
+        "set_head_lights_high_beams"
+      ],
+      "requirement": "Do not activate high beam headlights if fog lights are already on."
+    },
+    {
+      "id": "016",
+      "type": "constraint",
+      "trigger_tools": [
+        "set_new_navigation",
+        "get_routes_from_start_to_destination"
+      ],
+      "requirement": "Ensure the start of the overall route is always set to the current car location."
+    },
+    {
+      "id": "017",
+      "type": "precondition",
+      "trigger_tools": [
+        "navigation_add_one_waypoint",
+        "navigation_delete_destination",
+        "navigation_delete_waypoint",
+        "navigation_replace_final_destination",
+        "navigation_replace_one_waypoint"
+      ],
+      "requirement": "Only use waypoint editing tools when the navigation system is already active and a route is set."
+    },
+    {
+      "id": "018",
+      "type": "prohibition",
+      "trigger_tools": [
+        "navigation_add_one_waypoint",
+        "navigation_delete_destination",
+        "navigation_delete_waypoint",
+        "navigation_replace_final_destination",
+        "navigation_replace_one_waypoint"
+      ],
+      "requirement": "Do not execute multiple waypoint editing tool calls in parallel."
+    },
+    {
+      "id": "019",
+      "type": "constraint",
+      "trigger_tools": [
+        "navigation_delete_destination",
+        "navigation_delete_waypoint"
+      ],
+      "requirement": "Do not allow the destination to be deleted if there is no intermediate stop left in the route."
+    },
+    {
+      "id": "021",
+      "type": "disclosure",
+      "trigger_tools": [],
+      "requirement": "Inform the user if a presented route includes toll roads."
+    },
+    {
+      "id": "022",
+      "type": "selection",
+      "trigger_tools": [
+        "set_new_navigation",
+        "get_routes_from_start_to_destination"
+      ],
+      "requirement": "Select the fastest route proactively per segment if the user requests a multi-stop route without specifying a selection."
+    },
+    {
+      "id": "023",
+      "type": "constraint",
+      "trigger_tools": [
+        "get_entries_from_calendar"
+      ],
+      "requirement": "Only request calendar entries for the current day."
+    },
+    {
+      "id": "024",
+      "type": "constraint",
+      "trigger_tools": [
+        "get_weather"
+      ],
+      "requirement": "Only request weather information for the current day for a specified time."
+    }
+  ]
+}
