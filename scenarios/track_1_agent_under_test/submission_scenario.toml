@@ -9,10 +9,12 @@ LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}"
 image = "ghcr.io/bouchekirredouane/car-bench-track-1-agent-under-test@sha256:3490d224750d571d6dad9dbb5a0d45b773f54db1f3c31617f544e01d0dc758fe"
 
 [agent_under_test.env]
-# AgentGuardUtil runs litellm on Google Gemini: a Google AI Studio key is expected.
-AGENT_LLM = "${AGENT_LLM:-gemini/gemini-2.5-flash}"
-GEMINI_API_KEY = "${GEMINI_API_KEY:?Set GEMINI_API_KEY (Google AI Studio key, used by AGENT_LLM=gemini/gemini-2.5-flash)}"
-AGENT_TEMPERATURE = "${AGENT_TEMPERATURE:-0.0}"
+# AgentGuardUtil runs litellm on Claude Opus 4.8 via OpenRouter:
+# an OpenRouter API key (openrouter.ai) is expected.
+AGENT_LLM = "${AGENT_LLM:-openrouter/anthropic/claude-opus-4.8}"
+OPENROUTER_API_KEY = "${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY (used by AGENT_LLM=openrouter/anthropic/claude-opus-4.8)}"
+# Claude Opus 4.8 rejects explicit sampling parameters -> leave temperature unset.
+AGENT_TEMPERATURE = "${AGENT_TEMPERATURE:-}"
 LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}"
 
 [config]
