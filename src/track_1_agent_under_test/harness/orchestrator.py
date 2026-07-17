@@ -162,9 +162,6 @@ class CoVeOrchestrator:
         if cfg.enable_provenance:
             try:
                 state.provenance.ingest_messages(messages)
-                # print(f"it Provenance ledger  receives messages: {messages} \n\n")
-                # print(f"\n\n Provenance ledger found ({len(state.provenance.ids)} ids): {sorted(state.provenance.ids)} ")
-
             except Exception as e:  # noqa: BLE001
                 logger.warning("Provenance ingest failed (%s)", e)
 

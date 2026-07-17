@@ -33,8 +33,8 @@ logger = configure_logger(role="agent_under_test", context="server")
 def prepare_agent_card(url: str) -> AgentCard:
     """Create the agent card for the CAR-bench agent under test."""
     card = AgentCard(
-        name="car_bench_agent",
-        description="In-car voice assistant agent for CAR-bench evaluation",
+        name="AgentGuardUtil",
+        description="Team AgentGuardUtil — in-car voice assistant agent with a grounded verify-and-revise reliability harness for CAR-bench Track 1",
         version="1.0.0",
         default_input_modes=["text/plain", "application/json"],
         default_output_modes=["text/plain", "application/json"],
@@ -82,8 +82,11 @@ def main():
     # Priority: CLI args > env vars > default
     import os
     agent_llm = args.agent_llm or os.getenv("AGENT_LLM", "gemini/gemini-2.5-flash")
+    env_temperature = os.getenv("AGENT_TEMPERATURE")
     completion_kwargs = {
-        "temperature": args.temperature or os.getenv("AGENT_TEMPERATURE", None),
+        # env vars arrive as strings — cast, or litellm receives temperature="0.0"
+        "temperature": args.temperature if args.temperature is not None
+                       else (float(env_temperature) if env_temperature else None),
         "thinking": args.thinking or (os.getenv("AGENT_THINKING", "false").lower() == "true"),
         "reasoning_effort": args.reasoning_effort or os.getenv("AGENT_REASONING_EFFORT", "medium"),
         "interleaved_thinking": args.interleaved_thinking or (os.getenv("AGENT_INTERLEAVED_THINKING", "false").lower() == "true"),

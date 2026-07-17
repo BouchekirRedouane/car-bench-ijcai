@@ -89,33 +89,7 @@ class CARBenchAgentExecutor(AgentExecutor):
         self.ctx_id_to_turn_metrics: dict[str, dict] = {}
         self.ctx_id_to_state: dict[str, ContextState] = {}
 
-
-
-
-
-
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
-
-        
-        
-        task_id = getattr(context, 'task_id', 'N/A')
-        context_id = getattr(context, 'context_id', 'N/A')
-        current_task = getattr(context, 'current_task', None)
-
-
-        print("\n\nStart executing CAR-bench agent under test...\n\n")
-        print(f"Context ID: {context.context_id}")
-        print(f"Task ID: {getattr(context, 'task_id', 'N/A')}")
-        print(f"Current Task: {getattr(context, 'current_task', None)}")
-
-
-        
-        try:
-            user_input = context.get_user_input()
-        except Exception:
-            user_input = "No text payload"
-        
-
         inbound_message = context.message
         ctx_logger = logger.bind(role="agent_under_test", context=f"ctx:{context.context_id[:8]}")
 
@@ -179,10 +153,6 @@ class CARBenchAgentExecutor(AgentExecutor):
             logger.warning(f"Failed to parse message parts: {e}, using fallback")
             user_message_text = context.get_user_input()
 
-        
-        
-        
-        
         # ---- append tool results or the user message to history ---------- #
         if messages and messages[-1].get("role") == "assistant" and messages[-1].get("tool_calls"):
             prev_tool_calls = messages[-1]["tool_calls"]
@@ -268,14 +238,6 @@ class CARBenchAgentExecutor(AgentExecutor):
             turn_m[NUM_LLM_CALLS] += 1
             turn_m["_total_llm_time_ms"] += elapsed_ms
 
-
-
-
-
-
-
-
-
         # ---- per-context harness state ---------------------------------- #
         ctx_state = self.ctx_id_to_state.get(context.context_id)
         if ctx_state is None:
@@ -283,11 +245,7 @@ class CARBenchAgentExecutor(AgentExecutor):
             ctx_state._context_id = context.context_id  # for trace correlation
             self.ctx_id_to_state[context.context_id] = ctx_state
 
-        
-        
-        
         # ---- run the reliability harness for this turn ------------------ #
-        print("\n\nRunning reliability harness for this turn...\n\n")
         num_passes = 1
         try:
             assistant_content = self.orchestrator.run_turn(
@@ -297,7 +255,6 @@ class CARBenchAgentExecutor(AgentExecutor):
             num_passes = assistant_content.pop("num_passes", 1)
 
             tool_calls = assistant_content.get("tool_calls")
-            print("\n\nReliability harness turn complete.\n\n")
             ctx_logger.info(
                 f"Harness turn complete | num_passes={num_passes} | "
                 f"tool_calls={len(tool_calls) if tool_calls else 0} | "
