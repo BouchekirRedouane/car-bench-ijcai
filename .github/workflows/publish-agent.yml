@@ -1,0 +1,53 @@
+name: Publish Track-1 agent image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/track_1_agent_under_test/**"
+      - "src/logging_utils.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/publish-agent.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # third_party/car-bench is gitignored locally (a plain clone of the
+      # public benchmark repo); the Dockerfile needs it present for uv.lock's
+      # path dependency. Pin the same commit as the local checkout.
+      - name: Fetch car-bench dependency
+        run: |
+          git clone https://github.com/CAR-bench/car-bench.git third_party/car-bench
+          git -C third_party/car-bench checkout 6bc1900
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/track_1_agent_under_test/Dockerfile.track-1-agent-under-test
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test:latest
+            ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test:${{ github.sha }}
+
+      - name: Print pinned digest for the submission
+        run: |
+          echo "Submission image (digest-pinned):"
+          echo "ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test@${{ steps.push.outputs.digest }}"
