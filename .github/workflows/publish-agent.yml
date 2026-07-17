@@ -44,10 +44,10 @@ jobs:
           file: src/track_1_agent_under_test/Dockerfile.track-1-agent-under-test
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test:latest
-            ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test:${{ github.sha }}
+            ghcr.io/bouchekirredouane/car-bench-track-1-agent-under-test:latest
+            ghcr.io/bouchekirredouane/car-bench-track-1-agent-under-test:${{ github.sha }}
 
       - name: Print pinned digest for the submission
         run: |
           echo "Submission image (digest-pinned):"
-          echo "ghcr.io/${{ github.repository_owner }}/car-bench-track-1-agent-under-test@${{ steps.push.outputs.digest }}"
+          echo "ghcr.io/bouchekirredouane/car-bench-track-1-agent-under-test@${{ steps.push.outputs.digest }}"
