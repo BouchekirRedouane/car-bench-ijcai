@@ -1,12 +1,12 @@
-# GHCR smoke scenario for a published baseline LiteLLM agent image.
-# Replace the agent_under_test image with your published image before running.
+# GHCR smoke scenario — AgentGuardUtil submission image, digest-pinned.
+# Requires a native GEMINI_API_KEY in .env (Google AI Studio, not OpenRouter).
 
 [evaluator]
 image = "ghcr.io/car-bench/car-bench-evaluator:latest"
 env = { GEMINI_API_KEY = "${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}", LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}" }
 
 [agent_under_test]
-image = "ghcr.io/yourusername/car-bench-track-1-agent-under-test:latest"
+image = "ghcr.io/bouchekirredouane/car-bench-track-1-agent-under-test@sha256:3490d224750d571d6dad9dbb5a0d45b773f54db1f3c31617f544e01d0dc758fe"
 env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}", OPENAI_API_KEY = "${OPENAI_API_KEY:-}", GEMINI_API_KEY = "${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}", AGENT_LLM = "${AGENT_LLM:-gemini/gemini-2.5-flash}", AGENT_TEMPERATURE = "${AGENT_TEMPERATURE:-0.0}", LOGURU_LEVEL = "${LOGURU_LEVEL:-INFO}" }
 
 [config]
