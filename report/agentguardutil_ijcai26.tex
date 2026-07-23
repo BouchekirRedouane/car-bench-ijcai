@@ -67,37 +67,64 @@ policy, tool schemas, and observations provided at run time.
 \end{abstract}
 
 \section{Introduction}
-CAR-bench~\cite{carbench} evaluates in-car voice assistants that control
-vehicle functions, navigation, and communication through ${\sim}57$ tools
-under a ${\sim}3$-page natural-language policy, in closed-loop conversation
-with a simulated driver over the A2A protocol. Tasks are scored on a
-conjunction of criteria --- exact final and \emph{intermediate} environment
-states, tool-coverage, execution errors, automated and LLM-judged policy
-compliance, and correct conversation termination --- and the headline metric is
+\paragraph{Context.}
+LLM-based agents are moving rapidly from research prototypes into products
+that act on the physical world. In-vehicle voice assistants are an exemplary
+setting: the agent controls windows, climate, lighting, navigation, charging,
+and communication on behalf of a driver whose attention is limited, under a
+manufacturer policy that encodes safety and interaction rules. Here the cost
+of an unreliable action --- a fabricated identifier, an omitted mandatory
+side-effect, a confidently wrong ``done'' --- is not a benchmark point but a
+trust and safety incident.
+
+\paragraph{The problem.}
+Existing agent benchmarks largely evaluate under idealized conditions ---
+complete information, available tools, unambiguous instructions --- whereas
+deployed agents face incomplete or ambiguous requests, capabilities that may
+be missing, and domain policies that constrain behavior;
+CAR-bench~\cite{carbench} was built around exactly this gap, and its baseline
+studies report that frontier models systematically prioritize task completion
+over admitting incapability. Concretely (Fig.~\ref{fig:overview}), a
+simulated driver converses in closed loop with the agent, which observes and
+mutates a vehicle--world environment through 58 tools under a multi-page
+natural-language policy; tasks are scored on a \emph{conjunction} of criteria
+(exact final \emph{and} intermediate environment states, tool coverage,
+execution errors, automated and LLM-judged policy compliance, correct
+termination), and the headline metric over $k$ repeated trials is
 \begin{equation}
 \pass{k} \;=\; \frac{1}{|\mathcal{T}|}\sum_{\tau\in\mathcal{T}}
 \prod_{j=1}^{k}\mathbf{1}\!\left[\text{trial } j \text{ of } \tau \text{ passes}\right],
 \label{eq:passk}
 \end{equation}
-with $k{=}3$ on the hidden test set. Modeling trial outcomes of task $\tau$ as
-i.i.d.\ Bernoulli with success rate $q_\tau$,
-$\mathbb{E}[\pass{k}] = \frac{1}{|\mathcal{T}|}\sum_\tau q_\tau^{\,k}$:
-the metric is dominated by the \emph{stable core} of tasks with
-$q_\tau\!\approx\!1$, and near-coin-flip tasks contribute almost nothing
-($0.5^3{=}0.125$). This shaped our design goal: not to maximize single-run
-accuracy, but to make passes \emph{repeatable}.
+with $k{=}3$ on the hidden test set. Under an i.i.d.\ Bernoulli model with
+per-task success rate $q_\tau$,
+$\mathbb{E}[\pass{k}]=\frac{1}{|\mathcal{T}|}\sum_\tau q_\tau^{\,k}$: the
+metric is dominated by the \emph{stable core} of tasks with
+$q_\tau\!\approx\!1$, while near-coin-flip tasks contribute almost nothing
+($0.5^3{=}0.125$). The challenge is therefore twofold: suppress the
+characteristic compliance failures (invented identifiers, skipped mandatory
+side-effects, non-canonical write sequences, refusals of computable requests,
+present-time answers to future-time constraints), and make correct behavior
+\emph{repeatable} rather than merely likely.
 
-Baseline agents fail CAR-bench in characteristic ways: invented identifiers
-and parameters (hallucination split), omitted policy-mandated side-effects,
-extra or re-ordered writes that leave the intermediate state chain, refusals
-of computable requests, and present-time answers to future-time constraints.
-These are precisely failures of \emph{compliance}, not capability. Our
+\paragraph{Our approach.}
+\emph{AgentGuardUtil} interposes a verification layer between the LLM and the
+vehicle (Fig.~\ref{fig:overview}): the LLM only \emph{proposes}; a harness
+grounded in the episode's own artifacts decides what may execute. At the
+first turn, the natural-language policy is compiled --- once, and cached ---
+into typed machine-checkable rules, part of which receive an
+\emph{executable} form. On every draft action, a deterministic obligation
+engine evaluates these rules against live tool results and the simulated
+post-write state of the draft itself, computing the exact remedial calls the
+policy requires; ${\sim}25$ further deterministic gates enforce identifier
+provenance, schema validity, and interaction protocols, and an LLM critic
+adjudicates the uncertain findings. Surviving findings drive a bounded
+revise-and-recheck loop before anything reaches the environment. Our
 contributions:
 \begin{enumerate}
 \itemsep0pt
-\item a \textbf{runtime policy compiler} that turns the episode's policy text
-into typed rules with an executable sub-language, cached per policy hash
-(\S\ref{sec:compile});
+\item a \textbf{runtime policy compiler} producing typed rules with an
+executable sub-language, cached per policy hash (\S\ref{sec:compile});
 \item a \textbf{deterministic obligation engine} that evaluates executable
 rules on a projection of the environment state --- including \emph{simulation
 of the draft's own writes} --- and emits exact remedial tool calls
@@ -107,11 +134,44 @@ an LLM critic, engineered for $\pass{k}$ stability (\S\ref{sec:verify});
 \item an \textbf{empirical variance analysis} on the public splits motivating
 these choices (\S\ref{sec:eval}).
 \end{enumerate}
-Our approach composes chain-of-verification
+The design composes chain-of-verification
 prompting~\cite{dhuliawala2023cove}, self-consistency~\cite{wang2023sc}, and
-tool-use agent patterns~\cite{yao2023react,yao2024tau}, but moves the decisive
-checks out of the model and into code that the model cannot hallucinate
-around.
+tool-use agent patterns~\cite{yao2023react,yao2024tau}, but moves the
+decisive checks out of the model and into code that the model cannot
+hallucinate around.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  node distance=3mm and 3.4mm,
+  box/.style={draw,rounded corners=1pt,align=center,inner sep=2.6pt,minimum height=6mm},
+  llm/.style={box,fill=orange!18},
+  det/.style={box,fill=cyan!14},
+  env/.style={box,fill=gray!12},
+  arr/.style={-{Stealth[length=1.7mm]},semithick}
+]
+\node[env] (user) {Simulated\\driver};
+\node[llm,right=7mm of user] (agent) {LLM\\proposer};
+\node[det,right=of agent] (harness) {\textbf{AgentGuardUtil}\\ \tiny compiled rules $\cdot$ obligation\\ \tiny engine $\cdot$ gates $\cdot$ critic};
+\node[env,right=of harness] (tools) {58 tools};
+\node[env,below=2.6mm of tools] (world) {Environment\\ \tiny states $\cdot$ context $\cdot$ databases};
+\node[env,below=2.6mm of agent] (policy) {Policy text};
+\draw[arr] (user) -- node[above]{\tiny (1)} (agent);
+\draw[arr,<->] (agent) -- node[above]{\tiny draft/revise} (harness);
+\draw[arr] (harness) -- node[above]{\tiny (2) verified} (tools);
+\draw[arr,<->] (tools) -- (world);
+\draw[arr] (policy) -- node[below,sloped]{\tiny compile} (harness.south west);
+\draw[arr] (policy) -- node[right]{\tiny prompt} (agent);
+\draw[arr] (harness.north) to[bend right=20] node[above]{\tiny (3) response} (user.north);
+\end{tikzpicture}
+\caption{AgentGuardUtil in the CAR-bench loop~\cite{carbench}: the simulated
+driver (1) converses with the agent; the LLM only drafts, the harness
+verifies and revises before (2) tool execution against the vehicle--world
+environment and (3) the spoken response. The policy is both the LLM's prompt
+and the harness's compilation source.}
+\label{fig:overview}
+\end{figure}
 
 \begin{figure}[t]
 \centering
